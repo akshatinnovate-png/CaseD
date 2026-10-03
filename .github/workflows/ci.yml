@@ -40,14 +40,21 @@ jobs:
     needs: selftest
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
+      contents: read      # checkout; naming any scope zeroes the rest
+      pages: write        # read the Pages config, and create it via enablement
+      id-token: write     # deploy-pages exchanges an OIDC token
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # `enablement: true` turns Pages on via the API and sets the build type
+      # to "GitHub Actions". Without it the action only *reads* the Pages
+      # config, and fails with "Get Pages site failed / Not Found" on a repo
+      # where Pages has never been switched on by hand.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
