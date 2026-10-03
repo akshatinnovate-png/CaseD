@@ -1,0 +1,20 @@
+{
+  "name": "cased",
+  "owner": { "name": "akshatinnovate-png" },
+  "metadata": {
+    "description": "cased2.0 — you shipped it, now make the trailer.",
+    "version": "2.0.0"
+  },
+  "plugins": [
+    {
+      "name": "cased",
+      "source": "./",
+      "description": "Turn a repository into a cinematic launch film — scored, beat-cut, rendered to MP4, with share copy for X, LinkedIn, HN and Product Hunt.",
+      "version": "2.0.0",
+      "author": { "name": "akshatinnovate-png" },
+      "homepage": "https://github.com/akshatinnovate-png/CaseD",
+      "license": "MIT",
+      "keywords": ["video", "launch", "trailer", "demo", "generative"]
+    }
+  ]
+}

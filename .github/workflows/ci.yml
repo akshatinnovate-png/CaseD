@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  selftest:
+    name: self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Playwright + Chromium
+        run: npm i -g playwright && npx playwright install --with-deps chromium
+
+      # The self-test renders a real 2.5s film, so this covers the whole
+      # pipeline -- analyzer, scorer, composer, engine and FFmpeg mux.
+      - name: Run self-test
+        run: python3 scripts/selftest.py
+
+      - name: Check generated shader is in sync
+        run: python3 scripts/sync_bed.py --check
+
+  pages:
+    name: deploy site
+    if: github.ref == 'refs/heads/main'
+    needs: selftest
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deploy
+        uses: actions/deploy-pages@v4

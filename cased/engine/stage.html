@@ -1,0 +1,1261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>cased2.0 stage</title>
+<style>
+  /* ---------------------------------------------------------------------
+     The stage is a fixed-size, deterministic canvas. Nothing here animates
+     on its own: every visual property is a pure function of seek(t), so a
+     frame rendered at t is byte-identical no matter when it is asked for.
+     --------------------------------------------------------------------- */
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:#000; overflow:hidden; }
+
+  :root {
+    --bg:#07070A; --fg:#FFFFFF; --accent:#FF4D8D; --accent2:#00E5FF;
+    --muted:rgba(255,255,255,.52); --line:rgba(255,255,255,.14);
+    --display:"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace;
+  }
+
+  #stage {
+    position:relative; overflow:hidden; background:var(--bg);
+    transform-origin:0 0; font-family:var(--display);
+    color:var(--fg); -webkit-font-smoothing:antialiased;
+  }
+  #bg, #fx { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #dom { position:absolute; inset:0; }
+
+  .layer { position:absolute; inset:0; will-change:transform,opacity; }
+
+  /* --- post-processing overlays ------------------------------------- */
+  #grain {
+    position:absolute; inset:0; pointer-events:none; opacity:.055;
+    background-image:var(--grain-src); background-size:180px 180px;
+  }
+  #scan {
+    position:absolute; inset:0; pointer-events:none; opacity:0;
+    background:repeating-linear-gradient(to bottom,
+      rgba(0,0,0,.30) 0 1px, rgba(0,0,0,0) 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  #vig {
+    position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(130% 115% at 50% 46%,
+      rgba(0,0,0,0) 38%, rgba(0,0,0,.42) 78%, rgba(0,0,0,.78) 100%);
+  }
+  #flash { position:absolute; inset:0; pointer-events:none; opacity:0; background:#fff; }
+  #bars  { position:absolute; inset:0; pointer-events:none; }
+  #bars i { position:absolute; left:0; right:0; height:0; background:#000; display:block; }
+  #bars i.t { top:0; } #bars i.b { bottom:0; }
+
+  /* --- typography ---------------------------------------------------- */
+  .kicker {
+    font-family:var(--mono); font-size:var(--k,15px); letter-spacing:.34em;
+    text-transform:uppercase; color:var(--accent); font-weight:600;
+  }
+  .display {
+    font-weight:800; letter-spacing:-.045em; line-height:.88;
+    text-transform:none; font-size:var(--s,120px);
+  }
+  .display.caps { text-transform:uppercase; letter-spacing:-.025em; }
+  .sub { font-size:var(--s,26px); line-height:1.38; color:var(--muted); font-weight:400; }
+  .mono { font-family:var(--mono); }
+
+  .word { display:inline-block; white-space:pre; will-change:transform,opacity; }
+  .char { display:inline-block; white-space:pre; will-change:transform,opacity; }
+  .clipline { display:block; overflow:hidden; }
+
+  /* --- retro window chrome (TypeSafe reference) ---------------------- */
+  .win { position:absolute; background:#D8D8D4; border:2px solid #111;
+         box-shadow:7px 7px 0 rgba(0,0,0,.55); overflow:hidden; }
+  .win > .bar {
+    background:#111; color:#fff; font-family:var(--mono); font-size:17px;
+    padding:7px 12px; display:flex; justify-content:space-between;
+    align-items:center; letter-spacing:.04em;
+  }
+  .win > .bar .dots { display:flex; gap:6px; }
+  .win > .bar .dots b { width:11px; height:11px; background:#fff; display:block; }
+  .win > .body { padding:18px 20px; font-family:var(--mono); color:#111; }
+
+  /* --- terminal window (code shots) ---------------------------------- */
+  .term { position:absolute; background:rgba(8,9,14,.93); border:1px solid var(--line);
+          border-radius:12px; overflow:hidden;
+          box-shadow:0 48px 120px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.04) inset; }
+  .term .tbar { display:flex; align-items:center; gap:11px; padding:17px 22px;
+                border-bottom:1px solid var(--line); font-family:var(--mono);
+                font-size:19px; color:var(--muted); }
+  .term .tbar u { width:13px; height:13px; border-radius:50%; display:block; opacity:.85; }
+  .term pre { padding:26px 30px; font-family:var(--mono); line-height:1.56;
+              font-size:var(--cs,21px); color:#C9D4E4; white-space:pre; }
+  .tok-k { color:var(--accent); font-weight:600; }
+  .tok-s { color:#8FE39A; }
+  .tok-n { color:#F0B86E; }
+  .tok-c { color:rgba(255,255,255,.3); font-style:italic; }
+  .tok-f { color:var(--accent2); }
+  .tok-p { color:rgba(255,255,255,.44); }
+  .caret { display:inline-block; width:.58em; height:1.05em; background:var(--accent2);
+           vertical-align:-.18em; }
+
+  /* --- misc parts ---------------------------------------------------- */
+  .rule { background:var(--line); }
+  .chip { display:inline-block; font-family:var(--mono); font-size:16px;
+          letter-spacing:.14em; text-transform:uppercase; padding:9px 16px;
+          border:1px solid var(--line); border-radius:999px; color:var(--muted); }
+  .crop { position:absolute; width:26px; height:26px; border:2px solid var(--fg); opacity:.3; }
+  .bigstat { font-weight:800; letter-spacing:-.06em; line-height:.82; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg"></canvas>
+  <canvas id="fx"></canvas>
+  <div id="dom"></div>
+  <div id="grain"></div>
+  <div id="scan"></div>
+  <div id="vig"></div>
+  <div id="flash"></div>
+  <div id="bars"><i class="t"></i><i class="b"></i></div>
+</div>
+<script>
+/* =======================================================================
+   cased2.0 scene engine
+   -----------------------------------------------------------------------
+   One rule governs this file: every visual is a pure function of time.
+   There are no CSS animations, no requestAnimationFrame loops driving
+   state, and no Date.now(). The renderer calls seek(t) for each frame it
+   wants, in any order, and gets back exactly the same pixels every time.
+   That is what makes the output reproducible from a seed.
+   ======================================================================= */
+'use strict';
+
+const S = {
+  spec: null, shots: [], theme: null,
+  W: 1920, H: 1080, t: 0,
+  gl: null, glProg: null, glU: {}, glBuf: null,
+  fx: null, fxCtx: null, dom: null,
+  built: false, stars: [], arcs: [], motes: [],
+};
+
+/* --- deterministic RNG (mulberry32) ----------------------------------- */
+function rng(seed) {
+  let a = (seed >>> 0) || 1;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* --- easing ----------------------------------------------------------- */
+const E = {
+  lin:  t => t,
+  out:  t => 1 - Math.pow(1 - t, 3),
+  expo: t => (t >= 1 ? 1 : 1 - Math.pow(2, -11 * t)),
+  inExpo: t => (t <= 0 ? 0 : Math.pow(2, 11 * (t - 1))),
+  inOut: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  back: t => { const c = 1.70158, c3 = c + 1; return 1 + c3 * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+  // Critically-ish damped spring. Settles without the cartoon overshoot.
+  spring: t => (t >= 1 ? 1 : 1 - Math.pow(2, -9 * t) * Math.cos(t * 13.2)),
+};
+
+const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+/** Normalised progress of `t` across [a,b], eased. */
+const seg = (t, a, b, ease = E.out) => ease(clamp((t - a) / Math.max(b - a, 1e-6)));
+
+function hex2rgb(h) {
+  h = (h || '#000').replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+const rgba = (h, a) => { const c = hex2rgb(h); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; };
+
+/* =======================================================================
+   WebGL background bed
+   -----------------------------------------------------------------------
+   One fragment shader, several looks selected by u_mode. Running it on the
+   GPU keeps full-frame 1920x1080 noise affordable; the same thing in 2D
+   canvas would dominate render time.
+   ======================================================================= */
+
+const VERT = `attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+
+const FRAG = `
+precision highp float;
+uniform vec2  u_res;
+uniform float u_time;
+uniform float u_mode;
+uniform float u_energy;
+uniform float u_seed;
+uniform vec3  u_bg;
+uniform vec3  u_a1;
+uniform vec3  u_a2;
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7)) + u_seed) * 43758.5453123); }
+
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+             mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+float fbm(vec2 p){
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++){ v += a * noise(p); p *= 2.02; a *= 0.5; }
+  return v;
+}
+
+/* Soft flowing gradient. The default cinematic bed. */
+vec3 aurora(vec2 uv){
+  float t = u_time * 0.055;
+  vec2 q = vec2(fbm(uv * 1.7 + vec2(t, t * 0.7)), fbm(uv * 1.7 + vec2(5.2, 1.3) - t * 0.6));
+  float f = fbm(uv * 2.1 + q * 1.9 + t * 0.4);
+  float g = fbm(uv * 3.3 - q * 1.2 - t * 0.25);
+  vec3 col = u_bg;
+  col = mix(col, u_a1, smoothstep(0.28, 0.92, f) * (0.46 + u_energy * 0.40));
+  col = mix(col, u_a2, smoothstep(0.42, 1.0, g) * (0.26 + u_energy * 0.30));
+  return col;
+}
+
+/* Perspective grid rushing toward the horizon. */
+vec3 gridTunnel(vec2 uv){
+  vec2 p = uv - 0.5;
+  p.y = abs(p.y) + 0.035;
+  vec2 g = vec2(p.x / p.y, 1.0 / p.y + u_time * 0.55);
+  vec2 l = abs(fract(g * vec2(2.2, 0.9)) - 0.5);
+  float line = min(l.x, l.y);
+  float w = smoothstep(0.055, 0.0, line) * smoothstep(1.35, 0.06, p.y * 6.0);
+  vec3 col = mix(u_bg, u_a1, w * (0.52 + u_energy * 0.48));
+  col += u_a2 * smoothstep(0.42, 0.0, length(uv - vec2(0.5, 0.5))) * 0.14 * u_energy;
+  return col;
+}
+
+/* Starfield with a soft nebula wash. */
+vec3 starfield(vec2 uv){
+  vec3 col = u_bg;
+  float neb = fbm(uv * 2.6 + vec2(u_time * 0.025, 0.0));
+  col = mix(col, u_a1 * 0.75, smoothstep(0.52, 1.0, neb) * 0.40);
+  col = mix(col, u_a2 * 0.55, smoothstep(0.62, 1.0, fbm(uv * 4.0 - u_time * 0.015)) * 0.22);
+  for (int i = 0; i < 3; i++){
+    float sc = 90.0 + float(i) * 95.0;
+    vec2 gp = uv * sc;
+    vec2 id = floor(gp);
+    float h = hash(id + float(i) * 31.7);
+    if (h > 0.976){
+      vec2 c = fract(gp) - 0.5;
+      float tw = 0.60 + 0.40 * sin(u_time * (1.6 + h * 3.4) + h * 28.0);
+      col += vec3(1.0) * smoothstep(0.30, 0.0, length(c)) * tw * (0.55 - float(i) * 0.13);
+    }
+  }
+  return col;
+}
+
+/* Hard, dithered two-tone plasma. The brutalist bed. */
+vec3 plasma(vec2 uv){
+  float f = fbm(uv * 3.0 + vec2(u_time * 0.14, u_time * 0.09));
+  float band = step(0.5, fract(f * 3.4 + u_time * 0.1));
+  float dither = step(0.5, hash(floor(uv * u_res / 3.0)));
+  float m = clamp(band * 0.72 + dither * 0.28, 0.0, 1.0);
+  return mix(u_bg, u_a1, m * (0.30 + u_energy * 0.34));
+}
+
+/* Concentric pulse rings radiating from centre. */
+vec3 rings(vec2 uv){
+  vec2 p = (uv - 0.5) * vec2(u_res.x / u_res.y, 1.0);
+  float d = length(p);
+  float r = sin(d * 22.0 - u_time * 1.7) * 0.5 + 0.5;
+  float m = smoothstep(0.62, 1.0, r) * smoothstep(0.85, 0.10, d);
+  vec3 col = mix(u_bg, u_a1, m * (0.14 + u_energy * 0.17));
+  col = mix(col, u_a2, smoothstep(0.62, 0.0, d) * 0.07 * u_energy);
+  return col;
+}
+
+void main(){
+  vec2 uv = gl_FragCoord.xy / u_res;
+  vec3 col;
+  if      (u_mode < 0.5) col = aurora(uv);
+  else if (u_mode < 1.5) col = gridTunnel(uv);
+  else if (u_mode < 2.5) col = starfield(uv);
+  else if (u_mode < 3.5) col = plasma(uv);
+  else                   col = rings(uv);
+
+  /* Subtle chromatic lift at the edges -- reads as lens, not as a filter. */
+  float vig = smoothstep(1.15, 0.22, length(uv - 0.5));
+  col *= mix(0.72, 1.0, vig);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+function compile(gl, type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error('shader: ' + gl.getShaderInfoLog(s));
+  return s;
+}
+
+function initGL(canvas) {
+  const gl = canvas.getContext('webgl', {
+    antialias: false, preserveDrawingBuffer: true, alpha: false,
+  });
+  if (!gl) return null;
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+    throw new Error('link: ' + gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  S.glU = {};
+  for (const n of ['u_res','u_time','u_mode','u_energy','u_seed','u_bg','u_a1','u_a2'])
+    S.glU[n] = gl.getUniformLocation(prog, n);
+  S.glProg = prog;
+  return gl;
+}
+
+const BG_MODES = { aurora: 0, grid: 1, stars: 2, plasma: 3, rings: 4 };
+
+/**
+ * The shader bed renders at a fraction of the stage and is upscaled by the
+ * compositor. Under software WebGL a full 1920x1080 six-octave fbm is by far
+ * the most expensive thing per frame, and the bed is a soft gradient field --
+ * the resample is not visible, the saving is roughly 4x.
+ */
+const BG_SCALE = 0.5;
+
+function drawGL(mode, energy, t) {
+  const gl = S.gl;
+  if (!gl) return;
+  const th = S.theme;
+  gl.viewport(0, 0, S.BW, S.BH);
+  gl.uniform2f(S.glU.u_res, S.BW, S.BH);
+  gl.uniform1f(S.glU.u_time, t);
+  gl.uniform1f(S.glU.u_mode, BG_MODES[mode] ?? 0);
+  gl.uniform1f(S.glU.u_energy, energy);
+  gl.uniform1f(S.glU.u_seed, (S.spec.seed % 1000) / 7.3);
+  const c = x => { const v = hex2rgb(x); return [v[0]/255, v[1]/255, v[2]/255]; };
+  gl.uniform3fv(S.glU.u_bg, c(th.bg));
+  gl.uniform3fv(S.glU.u_a1, c(th.accent));
+  gl.uniform3fv(S.glU.u_a2, c(th.accent2));
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+/* =======================================================================
+   2D effects layer
+   -----------------------------------------------------------------------
+   Everything the shader bed cannot do cheaply: geometry with real structure
+   -- the wireframe globe and its flight arcs, drifting motes, measurement
+   grids, and the glitch slice used on hard transitions.
+   ======================================================================= */
+
+function seedFx() {
+  const r = rng(S.spec.seed || 1);
+  S.motes = Array.from({ length: 150 }, () => ({
+    x: r(), y: r(), z: 0.25 + r() * 0.75, s: 0.6 + r() * 2.4,
+    vx: (r() - 0.5) * 0.020, vy: -0.012 - r() * 0.035, ph: r() * 6.28,
+  }));
+  // Globe: points on a Fibonacci sphere, kept only over "landmass" noise so
+  // the dots read as continents rather than a uniform shell.
+  S.globePts = [];
+  const N = 1500, GA = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (i / (N - 1)) * 2;
+    const rad = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = GA * i;
+    const x = Math.cos(th) * rad, z = Math.sin(th) * rad;
+    const n = (Math.sin(x * 4.1 + 1.3) * Math.cos(z * 3.7 - 0.8) +
+               Math.sin(y * 5.2) * 0.7 + Math.cos(x * 7.9 + z * 6.1) * 0.45);
+    if (n > 0.18) S.globePts.push([x, y, z]);
+  }
+  S.arcs = Array.from({ length: 11 }, () => {
+    const pick = () => {
+      const u = r() * 2 - 1, a = r() * Math.PI * 2, rad = Math.sqrt(1 - u * u);
+      return [Math.cos(a) * rad, u, Math.sin(a) * rad];
+    };
+    return { a: pick(), b: pick(), off: r(), spd: 0.35 + r() * 0.5 };
+  });
+}
+
+function fxClear() {
+  S.fxCtx.setTransform(1, 0, 0, 1, 0, 0);
+  S.fxCtx.clearRect(0, 0, S.W, S.H);
+}
+
+function drawMotes(t, energy, color) {
+  const c = S.fxCtx, W = S.W, H = S.H;
+  for (const m of S.motes) {
+    const x = ((m.x + m.vx * t) % 1 + 1) % 1;
+    const y = ((m.y + m.vy * t) % 1 + 1) % 1;
+    const tw = 0.42 + 0.58 * Math.sin(t * 1.4 + m.ph);
+    c.globalAlpha = clamp(m.z * 0.46 * tw * (0.35 + energy * 0.65));
+    c.fillStyle = color;
+    const s = m.s * m.z * (S.W / 1920);
+    c.beginPath(); c.arc(x * W, y * H, s, 0, 6.2832); c.fill();
+  }
+  c.globalAlpha = 1;
+}
+
+/** Rotating wireframe globe with animated great-circle arcs. */
+function drawGlobe(t, cx, cy, R, p, color, accent2) {
+  const c = S.fxCtx;
+  const rot = t * 0.26, tilt = -0.42;
+  const cosR = Math.cos(rot), sinR = Math.sin(rot);
+  const cosT = Math.cos(tilt), sinT = Math.sin(tilt);
+
+  const proj = ([x, y, z]) => {
+    let X = x * cosR - z * sinR, Z = x * sinR + z * cosR;
+    let Y = y * cosT - Z * sinT; Z = y * sinT + Z * cosT;
+    return [cx + X * R, cy + Y * R, Z];
+  };
+
+  // Atmosphere
+  const g = c.createRadialGradient(cx, cy, R * 0.70, cx, cy, R * 1.30);
+  g.addColorStop(0, rgba(accent2, 0.00));
+  g.addColorStop(0.72, rgba(accent2, 0.17 * p));
+  g.addColorStop(1, rgba(accent2, 0));
+  c.fillStyle = g;
+  c.beginPath(); c.arc(cx, cy, R * 1.30, 0, 6.2832); c.fill();
+
+  // Dotted landmass
+  const reveal = clamp(p * 1.25);
+  for (let i = 0; i < S.globePts.length; i++) {
+    if (i / S.globePts.length > reveal) break;
+    const [X, Y, Z] = proj(S.globePts[i]);
+    if (Z < -0.08) continue;
+    const d = clamp((Z + 0.1) / 1.1);
+    c.globalAlpha = (0.16 + d * 0.72) * p;
+    c.fillStyle = color;
+    const s = (0.9 + d * 1.5) * (R / 420);
+    c.fillRect(X - s, Y - s, s * 2, s * 2);
+  }
+  c.globalAlpha = 1;
+
+  // Terminator limb
+  c.strokeStyle = rgba(accent2, 0.5 * p);
+  c.lineWidth = 2 * (R / 420);
+  c.beginPath(); c.arc(cx, cy, R, 0, 6.2832); c.stroke();
+
+  // Flight arcs
+  for (const a of S.arcs) {
+    const prog = clamp(((t * a.spd + a.off) % 1.45) / 1.0);
+    if (prog <= 0.001) continue;
+    c.beginPath();
+    let started = false;
+    const STEPS = 46;
+    for (let i = 0; i <= STEPS; i++) {
+      const u = i / STEPS;
+      if (u > prog) break;
+      // Slerp A->B, then lift off the surface to arc through the sky.
+      const dot = clamp(a.a[0]*a.b[0] + a.a[1]*a.b[1] + a.a[2]*a.b[2], -1, 1);
+      const om = Math.acos(dot) || 1e-4, so = Math.sin(om);
+      const k1 = Math.sin((1 - u) * om) / so, k2 = Math.sin(u * om) / so;
+      const lift = 1 + 0.30 * Math.sin(u * Math.PI);
+      const pt = [ (a.a[0]*k1 + a.b[0]*k2) * lift,
+                   (a.a[1]*k1 + a.b[1]*k2) * lift,
+                   (a.a[2]*k1 + a.b[2]*k2) * lift ];
+      const [X, Y, Z] = proj(pt);
+      if (Z < -0.45) { started = false; continue; }
+      if (!started) { c.moveTo(X, Y); started = true; } else c.lineTo(X, Y);
+    }
+    c.strokeStyle = rgba(S.theme.accent, 0.78 * p);
+    c.lineWidth = 2.4 * (R / 420);
+    c.shadowColor = rgba(S.theme.accent, 0.85); c.shadowBlur = 16 * (R / 420);
+    c.stroke();
+    c.shadowBlur = 0;
+  }
+}
+
+/** Faint measurement grid + crop marks -- the technical-drawing layer. */
+function drawGrid(p, color, cell = 56) {
+  const c = S.fxCtx, W = S.W, H = S.H;
+  c.globalAlpha = 0.10 * p;
+  c.strokeStyle = color; c.lineWidth = 1;
+  const n = Math.ceil(W / cell) * clamp(p * 1.4);
+  c.beginPath();
+  for (let i = 0; i <= n; i++) { const x = i * cell; c.moveTo(x, 0); c.lineTo(x, H); }
+  for (let y = 0; y <= H; y += cell) { c.moveTo(0, y); c.lineTo(W * clamp(p * 1.4), y); }
+  c.stroke();
+  c.globalAlpha = 1;
+}
+
+/** Horizontal slice displacement -- used on hard cuts, never gratuitously. */
+function drawGlitch(amount, seedN) {
+  if (amount <= 0.002) return;
+  const c = S.fxCtx, r = rng(seedN | 0), W = S.W, H = S.H;
+  const slices = 8 + Math.floor(amount * 16);
+  for (let i = 0; i < slices; i++) {
+    const y = r() * H, h = 4 + r() * 46 * amount;
+    const dx = (r() - 0.5) * 190 * amount;
+    c.globalAlpha = 0.5 * amount;
+    c.fillStyle = r() > 0.5 ? S.theme.accent : S.theme.accent2;
+    c.fillRect(dx, y, W, h * 0.26);
+  }
+  c.globalAlpha = 1;
+}
+
+/** Animated audio-reactive-looking bars; driven by the beat map, not audio. */
+function drawWave(t, p, baseline, color) {
+  const c = S.fxCtx, W = S.W;
+  const bars = 72, bw = W / bars;
+  const r = rng(991);
+  c.globalAlpha = 0.5 * p;
+  for (let i = 0; i < bars * clamp(p * 1.3); i++) {
+    const ph = r() * 6.28;
+    const h = (0.25 + 0.75 * Math.abs(Math.sin(t * 3.1 + i * 0.31 + ph))) * 96 * p;
+    c.fillStyle = color;
+    c.fillRect(i * bw + bw * 0.22, baseline - h, bw * 0.56, h);
+  }
+  c.globalAlpha = 1;
+}
+
+/* =======================================================================
+   DOM helpers
+   ======================================================================= */
+
+const el = (tag, cls, html) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (html != null) n.innerHTML = html;
+  return n;
+};
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Scale unit: all layout numbers are authored against a 1080p-tall stage. */
+const U = () => S.H / 1080;
+const px = v => (v * U()).toFixed(2) + 'px';
+
+/** Split text into clipped lines of words, ready for a staggered rise. */
+function splitWords(text, perLine) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = [];
+  for (const w of words) {
+    cur.push(w);
+    if (cur.length >= perLine) { lines.push(cur); cur = []; }
+  }
+  if (cur.length) lines.push(cur);
+  const wrap = el('div');
+  const nodes = [];
+  lines.forEach(ws => {
+    const ln = el('span', 'clipline');
+    ws.forEach((w, i) => {
+      const s = el('span', 'word', esc(w) + (i < ws.length - 1 ? ' ' : ''));
+      ln.appendChild(s); nodes.push(s);
+    });
+    wrap.appendChild(ln);
+  });
+  return { wrap, nodes };
+}
+
+function splitChars(text) {
+  const wrap = el('span');
+  const nodes = [];
+  for (const ch of String(text)) {
+    const s = el('span', 'char', ch === ' ' ? '&nbsp;' : esc(ch));
+    wrap.appendChild(s); nodes.push(s);
+  }
+  return { wrap, nodes };
+}
+
+/** Staggered rise-and-fade used by nearly every text block. */
+function riseIn(nodes, lt, start, step, dur, dy = 1.05) {
+  nodes.forEach((n, i) => {
+    const p = seg(lt, start + i * step, start + i * step + dur, E.expo);
+    n.style.transform = `translateY(${((1 - p) * dy * 100).toFixed(2)}%)`;
+    n.style.opacity = p.toFixed(3);
+  });
+}
+
+/** Tiny tokenizer. Good enough to read as code on screen in one second. */
+const KEYWORDS = new Set((
+  'def class return import from as if elif else for while in not and or is None True False ' +
+  'lambda yield with try except finally raise pass break continue global async await ' +
+  'const let var function export default new this typeof instanceof interface type enum ' +
+  'public private static void int string bool struct impl fn pub mut use match ' +
+  'package func go chan defer select case switch end do then local nil self'
+).split(' '));
+
+function highlight(line) {
+  let out = '', i = 0;
+  const n = line.length;
+  while (i < n) {
+    const c = line[i];
+    // comment to end of line
+    if (c === '#' || (c === '/' && line[i + 1] === '/') || (c === '-' && line[i + 1] === '-')) {
+      out += `<span class="tok-c">${esc(line.slice(i))}</span>`; break;
+    }
+    // string literal
+    if (c === '"' || c === "'" || c === '`') {
+      let j = i + 1;
+      while (j < n && line[j] !== c) { if (line[j] === '\\') j++; j++; }
+      out += `<span class="tok-s">${esc(line.slice(i, Math.min(j + 1, n)))}</span>`;
+      i = j + 1; continue;
+    }
+    // identifier / keyword / call
+    if (/[A-Za-z_$]/.test(c)) {
+      let j = i;
+      while (j < n && /[\w$]/.test(line[j])) j++;
+      const w = line.slice(i, j);
+      if (KEYWORDS.has(w)) out += `<span class="tok-k">${esc(w)}</span>`;
+      else if (line[j] === '(') out += `<span class="tok-f">${esc(w)}</span>`;
+      else out += esc(w);
+      i = j; continue;
+    }
+    // number
+    if (/[0-9]/.test(c)) {
+      let j = i;
+      while (j < n && /[\w.]/.test(line[j])) j++;
+      out += `<span class="tok-n">${esc(line.slice(i, j))}</span>`;
+      i = j; continue;
+    }
+    if (/[{}()[\].,;:=+\-*/<>!&|%]/.test(c)) { out += `<span class="tok-p">${esc(c)}</span>`; i++; continue; }
+    out += esc(c); i++;
+  }
+  return out;
+}
+
+/* =======================================================================
+   Shot builders
+   -----------------------------------------------------------------------
+   Each returns { node, update(localTime, shotProgress) }. Build runs once;
+   update runs per frame and only touches style properties.
+   ======================================================================= */
+
+const BUILD = {};
+
+/* --- title: the hero statement ---------------------------------------- */
+BUILD.title = (d) => {
+  const n = el('div', 'layer');
+  const pad = S.vertical ? 86 : 132;
+  const box = el('div');
+  box.style.cssText = `position:absolute;left:${px(pad)};right:${px(pad)};` +
+    `top:50%;transform:translateY(-50%);`;
+  n.appendChild(box);
+
+  const parts = [];
+  if (d.kicker) {
+    const k = el('div', 'kicker', esc(d.kicker));
+    k.style.cssText = `--k:${px(17)};margin-bottom:${px(30)};`;
+    box.appendChild(k); parts.push(k);
+  }
+  // Auto-fit: long headlines step down so a three-word line never runs off
+  // the stage, and short ones stay enormous. Authored sizes still win.
+  const len = String(d.text || '').length;
+  const fit = len <= 22 ? 1.18 : len <= 34 ? 1.0 : len <= 52 ? 0.82
+            : len <= 74 ? 0.66 : len <= 100 ? 0.54 : 0.45;
+  const size = d.size || Math.round((S.vertical ? 122 : 164) * fit);
+  const perLine = d.perLine || (len > 52 ? (S.vertical ? 3 : 4) : (S.vertical ? 2 : 3));
+  const t = splitWords(d.text, perLine);
+  t.wrap.className = 'display' + (d.caps ? ' caps' : '');
+  t.wrap.style.setProperty('--s', px(size));
+  box.appendChild(t.wrap);
+
+  let subNodes = [];
+  if (d.sub) {
+    const s = splitWords(d.sub, 8);
+    s.wrap.className = 'sub';
+    s.wrap.style.cssText = `--s:${px(29)};margin-top:${px(38)};max-width:${px(900)};`;
+    box.appendChild(s.wrap); subNodes = s.nodes;
+  }
+  if (d.rule !== false) {
+    const r = el('div', 'rule');
+    r.style.cssText = `height:${px(2)};margin-top:${px(46)};transform-origin:left;`;
+    box.appendChild(r); parts.push(r);
+  }
+
+  return {
+    node: n,
+    update(lt) {
+      if (d.kicker) {
+        const p = seg(lt, 0, .5);
+        parts[0].style.opacity = p.toFixed(3);
+        parts[0].style.transform = `translateX(${((1 - p) * -22).toFixed(1)}px)`;
+      }
+      riseIn(t.nodes, lt, 0.14, 0.045, 0.80);
+      riseIn(subNodes, lt, 0.62, 0.012, 0.60, 0.6);
+      const rule = parts[parts.length - 1];
+      if (d.rule !== false && rule.classList.contains('rule'))
+        rule.style.transform = `scaleX(${seg(lt, .40, 1.25, E.expo).toFixed(3)})`;
+    },
+  };
+};
+
+/* --- stat: one measured number, very large ---------------------------- */
+BUILD.stat = (d) => {
+  const n = el('div', 'layer');
+  const box = el('div');
+  box.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;' +
+    'align-items:center;justify-content:center;text-align:center;';
+  n.appendChild(box);
+
+  const val = el('div', 'bigstat');
+  val.style.cssText = `font-size:${px(S.vertical ? 250 : 330)};`;
+  box.appendChild(val);
+
+  const lab = el('div', 'kicker');
+  lab.style.cssText = `--k:${px(24)};margin-top:${px(34)};color:var(--fg);opacity:.62;`;
+  lab.textContent = d.label || '';
+  box.appendChild(lab);
+
+  // Count toward the target rather than fading it in: the motion is the point.
+  const raw = String(d.value || '0');
+  const m = raw.match(/^([\d.]+)(.*)$/);
+  const target = m ? parseFloat(m[1]) : 0;
+  const suffix = m ? m[2] : raw;
+  const decimals = m && m[1].includes('.') ? 1 : 0;
+
+  return {
+    node: n,
+    update(lt) {
+      const p = seg(lt, 0.05, 1.05, E.expo);
+      const cur = target * p;
+      val.textContent = (m ? cur.toFixed(decimals) : '') + (p > 0.03 ? suffix : '');
+      val.style.transform = `scale(${lerp(1.14, 1, p).toFixed(4)})`;
+      val.style.opacity = clamp(p * 3).toFixed(3);
+      const lp = seg(lt, 0.42, 1.0);
+      lab.style.opacity = (lp * 0.62).toFixed(3);
+      lab.style.transform = `translateY(${((1 - lp) * 18).toFixed(1)}px)`;
+    },
+  };
+};
+
+/* --- code: real source, typed into a terminal ------------------------- */
+BUILD.code = (d) => {
+  const n = el('div', 'layer');
+  const W = S.vertical ? 0.90 : 0.78;
+  const term = el('div', 'term');
+  term.style.cssText =
+    `left:50%;top:50%;width:${(W * 100).toFixed(1)}%;transform:translate(-50%,-50%);`;
+  n.appendChild(term);
+
+  const bar = el('div', 'tbar');
+  ['#FF5F57', '#FEBC2E', '#28C840'].forEach(c => {
+    const u = el('u'); u.style.background = c; bar.appendChild(u);
+  });
+  bar.appendChild(el('span', '', `&nbsp;&nbsp;${esc(d.path || 'source')}`));
+  term.appendChild(bar);
+
+  const pre = el('pre');
+  pre.style.setProperty('--cs', px(S.vertical ? 23 : 28));
+  term.appendChild(pre);
+
+  const lines = (d.code || []).slice(0, 16);
+  const html = lines.map(highlight);
+  const total = lines.reduce((a, l) => a + l.length, 0) || 1;
+
+  let caption = null;
+  if (d.caption) {
+    caption = el('div', 'kicker');
+    caption.style.cssText =
+      `position:absolute;left:50%;transform:translateX(-50%);` +
+      `bottom:${px(S.vertical ? 190 : 110)};--k:${px(16)};`;
+    caption.textContent = d.caption;
+    n.appendChild(caption);
+  }
+
+  return {
+    node: n,
+    update(lt, p) {
+      const tp = seg(lt, 0.22, Math.max(0.9, (d.dur || 3) * 0.78), E.lin);
+      let budget = Math.floor(total * tp);
+      const out = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (budget <= 0) break;
+        if (budget >= lines[i].length) { out.push(html[i]); budget -= lines[i].length; }
+        else { out.push(highlight(lines[i].slice(0, budget)) + '<span class="caret"></span>'); budget = 0; }
+      }
+      pre.innerHTML = out.join('\n') || '<span class="caret"></span>';
+      const ip = seg(lt, 0, 0.62, E.expo);
+      term.style.opacity = ip.toFixed(3);
+      term.style.transform =
+        `translate(-50%,-50%) scale(${lerp(0.955, 1, ip).toFixed(4)}) ` +
+        `perspective(${px(2400)}) rotateX(${((1 - ip) * 7).toFixed(2)}deg)`;
+      if (caption) caption.style.opacity = seg(lt, 0.75, 1.35).toFixed(3);
+    },
+  };
+};
+
+/* --- bullets: what it does -------------------------------------------- */
+BUILD.bullets = (d) => {
+  const n = el('div', 'layer');
+  const pad = S.vertical ? 86 : 150;
+  const box = el('div');
+  box.style.cssText = `position:absolute;left:${px(pad)};right:${px(pad)};top:50%;transform:translateY(-50%);`;
+  n.appendChild(box);
+
+  let head = null;
+  if (d.title) {
+    head = el('div', 'kicker', esc(d.title));
+    head.style.cssText = `--k:${px(18)};margin-bottom:${px(44)};`;
+    box.appendChild(head);
+  }
+  const rows = (d.items || []).slice(0, 5).map((text, i) => {
+    const row = el('div');
+    row.style.cssText =
+      `display:flex;gap:${px(28)};align-items:baseline;padding:${px(20)} 0;` +
+      `border-top:1px solid var(--line);`;
+    const num = el('span', 'mono', String(i + 1).padStart(2, '0'));
+    num.style.cssText = `font-size:${px(19)};color:var(--accent);flex:0 0 auto;`;
+    const txt = el('span', '', esc(text));
+    txt.style.cssText =
+      `font-size:${px(S.vertical ? 38 : 48)};font-weight:600;letter-spacing:-.02em;line-height:1.18;`;
+    row.append(num, txt);
+    box.appendChild(row);
+    return row;
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      if (head) {
+        const p = seg(lt, 0, .5);
+        head.style.opacity = p.toFixed(3);
+        head.style.transform = `translateX(${((1 - p) * -20).toFixed(1)}px)`;
+      }
+      rows.forEach((r, i) => {
+        const p = seg(lt, 0.18 + i * 0.11, 0.18 + i * 0.11 + 0.62, E.expo);
+        r.style.opacity = p.toFixed(3);
+        r.style.transform = `translateX(${((1 - p) * 46).toFixed(1)}px)`;
+      });
+    },
+  };
+};
+
+/* --- globe: the "it ships everywhere" beat ---------------------------- */
+BUILD.globe = (d) => {
+  const n = el('div', 'layer');
+  const box = el('div');
+  const side = S.vertical;
+  box.style.cssText = side
+    ? `position:absolute;left:${px(80)};right:${px(80)};top:${px(150)};text-align:center;`
+    : `position:absolute;left:${px(132)};top:50%;transform:translateY(-50%);max-width:${px(760)};`;
+  n.appendChild(box);
+
+  const k = el('div', 'kicker', esc(d.kicker || ''));
+  k.style.cssText = `--k:${px(17)};margin-bottom:${px(26)};`;
+  box.appendChild(k);
+
+  const t = splitWords(d.text || '', side ? 2 : 2);
+  t.wrap.className = 'display caps';
+  t.wrap.style.setProperty('--s', px(side ? 96 : 128));
+  box.appendChild(t.wrap);
+
+  let subNodes = [];
+  if (d.sub) {
+    const s = splitWords(d.sub, 7);
+    s.wrap.className = 'sub';
+    s.wrap.style.cssText = `--s:${px(27)};margin-top:${px(32)};`;
+    box.appendChild(s.wrap); subNodes = s.nodes;
+  }
+  return {
+    node: n,
+    update(lt) {
+      k.style.opacity = seg(lt, 0, .5).toFixed(3);
+      riseIn(t.nodes, lt, 0.12, 0.05, 0.78);
+      riseIn(subNodes, lt, 0.60, 0.012, 0.55, 0.6);
+    },
+  };
+};
+
+/* --- langs: the language mix as a stacked meter ----------------------- */
+BUILD.langs = (d) => {
+  const n = el('div', 'layer');
+  const pad = S.vertical ? 80 : 160;
+  const box = el('div');
+  box.style.cssText = `position:absolute;left:${px(pad)};right:${px(pad)};top:50%;transform:translateY(-50%);`;
+  n.appendChild(box);
+
+  const k = el('div', 'kicker', esc(d.title || 'Built with'));
+  k.style.cssText = `--k:${px(18)};margin-bottom:${px(40)};`;
+  box.appendChild(k);
+
+  const meter = el('div');
+  meter.style.cssText =
+    `display:flex;height:${px(26)};border-radius:${px(13)};overflow:hidden;` +
+    `background:rgba(255,255,255,.07);`;
+  box.appendChild(meter);
+
+  const items = (d.items || []).slice(0, 6);
+  const segs = items.map(it => {
+    const s = el('div');
+    s.style.cssText = `background:${it.color};height:100%;width:${it.share}%;transform-origin:left;`;
+    meter.appendChild(s);
+    return s;
+  });
+
+  const legend = el('div');
+  legend.style.cssText = `display:flex;flex-wrap:wrap;gap:${px(16)} ${px(34)};margin-top:${px(38)};`;
+  box.appendChild(legend);
+  const chips = items.map(it => {
+    const c = el('div');
+    c.style.cssText = `display:flex;align-items:center;gap:${px(11)};font-size:${px(24)};font-weight:600;`;
+    const dot = el('span');
+    dot.style.cssText = `width:${px(13)};height:${px(13)};border-radius:50%;background:${it.color};display:block;`;
+    const nm = el('span', '', esc(it.name));
+    const sh = el('span', 'mono', `${it.share}%`);
+    sh.style.cssText = `color:var(--muted);font-size:${px(19)};`;
+    c.append(dot, nm, sh);
+    legend.appendChild(c);
+    return c;
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      k.style.opacity = seg(lt, 0, .45).toFixed(3);
+      segs.forEach((s, i) => {
+        s.style.transform = `scaleX(${seg(lt, 0.18 + i * 0.07, 1.05 + i * 0.07, E.expo).toFixed(3)})`;
+      });
+      chips.forEach((c, i) => {
+        const p = seg(lt, 0.45 + i * 0.07, 1.0 + i * 0.07);
+        c.style.opacity = p.toFixed(3);
+        c.style.transform = `translateY(${((1 - p) * 14).toFixed(1)}px)`;
+      });
+    },
+  };
+};
+
+/* --- timeline: how it got here ---------------------------------------- */
+BUILD.timeline = (d) => {
+  const n = el('div', 'layer');
+  const pad = S.vertical ? 76 : 170;
+  const box = el('div');
+  box.style.cssText = `position:absolute;left:${px(pad)};right:${px(pad)};top:50%;transform:translateY(-50%);`;
+  n.appendChild(box);
+
+  const k = el('div', 'kicker', esc(d.title || 'The log'));
+  k.style.cssText = `--k:${px(18)};margin-bottom:${px(42)};`;
+  box.appendChild(k);
+
+  const spine = el('div');
+  spine.style.cssText =
+    `position:absolute;left:${px(7)};top:${px(84)};bottom:0;width:${px(2)};` +
+    `background:var(--accent);transform-origin:top;`;
+  box.appendChild(spine);
+
+  const rows = (d.items || []).slice(0, 5).map(it => {
+    const row = el('div');
+    row.style.cssText = `display:flex;gap:${px(34)};align-items:center;padding:${px(17)} 0;`;
+    const dot = el('span');
+    dot.style.cssText =
+      `width:${px(16)};height:${px(16)};border-radius:50%;background:var(--accent);` +
+      `flex:0 0 auto;box-shadow:0 0 0 ${px(5)} ${rgba(S.theme.accent, .2)};`;
+    const txt = el('span', '', esc(it.text || it));
+    txt.style.cssText = `font-size:${px(S.vertical ? 32 : 40)};font-weight:500;letter-spacing:-.015em;`;
+    row.append(dot, txt);
+    box.appendChild(row);
+    return row;
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      k.style.opacity = seg(lt, 0, .45).toFixed(3);
+      spine.style.transform = `scaleY(${seg(lt, 0.12, 1.1, E.expo).toFixed(3)})`;
+      rows.forEach((r, i) => {
+        const p = seg(lt, 0.22 + i * 0.13, 0.22 + i * 0.13 + 0.55, E.expo);
+        r.style.opacity = p.toFixed(3);
+        r.style.transform = `translateX(${((1 - p) * 34).toFixed(1)}px)`;
+      });
+    },
+  };
+};
+
+/* --- retro: the brutalist dialog stack -------------------------------- */
+BUILD.retro = (d) => {
+  const n = el('div', 'layer');
+  const wins = (d.windows || []).slice(0, 3).map((w, i) => {
+    const node = el('div', 'win');
+    const baseW = S.vertical ? 76 : 44;
+    node.style.cssText =
+      `width:${baseW}%;left:${S.vertical ? 12 : (14 + i * 15)}%;` +
+      `top:${S.vertical ? (16 + i * 27) : (18 + i * 22)}%;`;
+    const bar = el('div', 'bar');
+    bar.appendChild(el('span', '', esc(w.title || 'README')));
+    bar.appendChild(el('span', 'dots', '<b></b><b></b>'));
+    node.appendChild(bar);
+    const body = el('div', 'body');
+    body.style.fontSize = px(S.vertical ? 21 : 25);
+    body.style.lineHeight = '1.5';
+    body.innerHTML = esc(w.body || '');
+    node.appendChild(body);
+    n.appendChild(node);
+    return node;
+  });
+  return {
+    node: n,
+    update(lt) {
+      wins.forEach((w, i) => {
+        const p = seg(lt, 0.08 + i * 0.20, 0.08 + i * 0.20 + 0.52, E.back);
+        w.style.opacity = clamp(p * 1.8).toFixed(3);
+        w.style.transform = `translateY(${((1 - p) * 40).toFixed(1)}px) scale(${lerp(0.93, 1, p).toFixed(4)})`;
+      });
+    },
+  };
+};
+
+/* --- endcard: name, link, call to action ------------------------------ */
+BUILD.endcard = (d) => {
+  const n = el('div', 'layer');
+  const box = el('div');
+  box.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;' +
+    'align-items:center;justify-content:center;text-align:center;';
+  n.appendChild(box);
+
+  const name = splitChars(d.name || '');
+  name.wrap.className = 'display caps';
+  name.wrap.style.cssText = `--s:${px(S.vertical ? 110 : 168)};display:block;`;
+  box.appendChild(name.wrap);
+
+  const sub = el('div', 'sub');
+  sub.style.cssText = `--s:${px(30)};margin-top:${px(26)};`;
+  sub.textContent = d.sub || '';
+  box.appendChild(sub);
+
+  const cta = el('div', 'chip', esc(d.cta || ''));
+  cta.style.cssText =
+    `margin-top:${px(48)};font-size:${px(20)};padding:${px(15)} ${px(30)};` +
+    `border-color:var(--accent);color:var(--fg);`;
+  box.appendChild(cta);
+
+  return {
+    node: n,
+    update(lt) {
+      name.nodes.forEach((c, i) => {
+        const p = seg(lt, 0.06 + i * 0.022, 0.06 + i * 0.022 + 0.55, E.spring);
+        c.style.opacity = clamp(p * 1.5).toFixed(3);
+        c.style.transform = `translateY(${((1 - p) * 42).toFixed(1)}px) rotate(${((1 - p) * -6).toFixed(2)}deg)`;
+      });
+      const sp = seg(lt, 0.55, 1.15);
+      sub.style.opacity = sp.toFixed(3);
+      sub.style.transform = `translateY(${((1 - sp) * 16).toFixed(1)}px)`;
+      const cp = seg(lt, 0.80, 1.45, E.back);
+      cta.style.opacity = clamp(cp * 1.6).toFixed(3);
+      cta.style.transform = `scale(${lerp(0.86, 1, cp).toFixed(4)})`;
+    },
+  };
+};
+
+/* =======================================================================
+   Composition
+   ======================================================================= */
+
+/**
+ * Per-shot camera: a slow push or drift so no frame is ever truly static.
+ * `x` and `y` are percentages of the stage, matching the translate() they
+ * feed. Mixing units here is how a lateral move silently becomes a no-op.
+ */
+function camera(shot, p) {
+  const e = E.inOut(p);          // ease the move, or it reads as a slide
+  switch (shot.cam || 'push') {
+    case 'push':  return { s: lerp(1.00, 1.065, e), x: 0, y: 0 };
+    case 'pull':  return { s: lerp(1.075, 1.00, e), x: 0, y: 0 };
+    case 'left':  return { s: 1.055, x: lerp(2.2, -2.2, e), y: 0 };
+    case 'right': return { s: 1.055, x: lerp(-2.2, 2.2, e), y: 0 };
+    case 'up':    return { s: 1.055, x: 0, y: lerp(2.0, -2.0, e) };
+    case 'none':  return { s: 1, x: 0, y: 0 };
+    default:      return { s: lerp(1.00, 1.05, e), x: 0, y: 0 };
+  }
+}
+
+/** Shot-level entrance/exit. Returns { op, tx, ty, sc, blur, clip }. */
+function transition(shot, lt, rt) {
+  const IN = 0.42, OUT = 0.34;
+  const i = clamp(lt / IN), o = clamp(rt / OUT);   // rt = time remaining
+  const fade = Math.min(E.expo(i), E.out(o));
+  const k = shot.in || 'fade';
+  const st = { op: fade, tx: 0, ty: 0, sc: 1 };
+  if (k === 'cut') { st.op = lt >= 0 && rt >= 0 ? 1 : 0; }
+  else if (k === 'push')  { st.tx = (1 - E.expo(i)) * 7; }
+  else if (k === 'rise')  { st.ty = (1 - E.expo(i)) * 5; }
+  else if (k === 'zoom')  { st.sc = lerp(1.09, 1, E.expo(i)); }
+  else if (k === 'flash') { st.op = Math.min(1, E.expo(Math.min(1, i * 2.4)), E.out(o)); }
+  else if (k === 'glitch'){ st.op = i > 0.10 ? Math.min(1, E.out(o)) : 0; }
+  return st;
+}
+
+function build() {
+  const dom = S.dom;
+  dom.innerHTML = '';
+  S.built = [];
+  for (const shot of S.shots) {
+    const fn = BUILD[shot.type] || BUILD.title;
+    let inst;
+    try { inst = fn(shot.data || {}); }
+    catch (e) { console.warn('shot build failed', shot.type, e); inst = BUILD.title({ text: shot.type }); }
+    inst.node.style.opacity = '0';
+    inst.shot = shot;
+    dom.appendChild(inst.node);
+    S.built.push(inst);
+  }
+}
+
+function seek(t) {
+  S.t = t;
+  const th = S.theme;
+
+  // --- which shot owns this instant --------------------------------------
+  let active = -1;
+  for (let i = 0; i < S.shots.length; i++) {
+    const s = S.shots[i];
+    if (t >= s.start - 0.001 && t < s.start + s.dur) { active = i; break; }
+  }
+  if (active < 0) active = t < 0 ? 0 : S.shots.length - 1;
+  const shot = S.shots[active];
+  const lt = t - shot.start;
+  const rt = shot.start + shot.dur - t;
+  const p = clamp(lt / shot.dur);
+
+  // --- background bed -----------------------------------------------------
+  drawGL(shot.bg || th.bg_mode || 'aurora', shot.energy ?? 0.6, t);
+
+  // --- 2D effects ---------------------------------------------------------
+  fxClear();
+  const fxp = clamp(lt / Math.min(1.2, shot.dur));
+  if (shot.fx?.includes('grid')) drawGrid(fxp, th.fg, 56 * U());
+  if (shot.fx?.includes('motes')) drawMotes(t, shot.energy ?? 0.6, th.fg);
+  if (shot.type === 'globe') {
+    const cx = S.vertical ? S.W * 0.5 : S.W * 0.74;
+    const cy = S.vertical ? S.H * 0.68 : S.H * 0.5;
+    const R = (S.vertical ? S.W * 0.40 : S.H * 0.40);
+    drawGlobe(t, cx, cy, R, E.expo(clamp(lt / 1.1)), th.fg, th.accent2);
+  }
+  if (shot.fx?.includes('wave')) drawWave(t, fxp, S.H * 0.90, th.accent);
+  if (shot.in === 'glitch') {
+    const g = clamp(1 - lt / 0.30);
+    if (g > 0) drawGlitch(g, Math.floor(t * 24) + shot.start * 100);
+  }
+
+  // --- DOM layers ---------------------------------------------------------
+  for (let i = 0; i < S.built.length; i++) {
+    const inst = S.built[i];
+    if (i !== active) {
+      if (inst.node.style.opacity !== '0') {
+        inst.node.style.opacity = '0';
+        inst.node.style.visibility = 'hidden';
+      }
+      continue;
+    }
+    inst.node.style.visibility = 'visible';
+    const st = transition(shot, lt, rt);
+    const cam = camera(shot, p);
+    inst.node.style.opacity = st.op.toFixed(3);
+    inst.node.style.transform =
+      `translate(${(st.tx + cam.x).toFixed(3)}%, ${(st.ty + cam.y).toFixed(3)}%) ` +
+      `scale(${(st.sc * cam.s).toFixed(4)})`;
+    try { inst.update(lt, p); } catch (e) { /* a bad shot must not kill the film */ }
+  }
+
+  // --- post -----------------------------------------------------------
+  const flashEl = document.getElementById('flash');
+  let flash = 0;
+  if (shot.in === 'flash') flash = Math.max(0, 1 - lt / 0.22) * 0.92;
+  if (shot.in === 'glitch') flash = Math.max(0, 1 - lt / 0.10) * 0.5;
+  flashEl.style.opacity = flash.toFixed(3);
+
+  document.getElementById('scan').style.opacity = (th.scanlines ? 0.42 : 0).toFixed(2);
+  document.getElementById('grain').style.opacity = (th.grain ?? 0.055).toFixed(3);
+  document.getElementById('vig').style.opacity = (th.vignette ?? 1).toFixed(2);
+
+  // Letterbox: the bars close in over the first beat and lift on the last,
+  // so the film opens and closes rather than simply being cropped.
+  const barH = th.letterbox ? S.H * 0.058 : 0;
+  const close = Math.min(seg(t, 0.0, 0.85, E.expo),
+                         seg(S.spec.duration - t, 0.0, 0.75, E.expo));
+  const h = barH * close;
+  const bars = document.getElementById('bars');
+  bars.children[0].style.height = h.toFixed(1) + 'px';
+  bars.children[1].style.height = h.toFixed(1) + 'px';
+
+  // Grain steps at 8Hz rather than per frame. Real film grain reads on a
+  // two-frame hold anyway, and uncorrelated noise on every frame is the most
+  // expensive thing in the file -- this alone cuts the encoded size by more
+  // than half without changing how it looks.
+  const gi = Math.floor(t * 8) % 8;
+  document.getElementById('grain').style.backgroundPosition =
+    `${(gi * 37) % 180}px ${(gi * 71) % 180}px`;
+}
+
+/* =======================================================================
+   Public API -- the only surface the renderer touches
+   ======================================================================= */
+
+async function load(spec) {
+  S.spec = spec;
+  S.shots = spec.shots;
+  S.theme = spec.theme;
+  S.W = spec.width; S.H = spec.height;
+  S.vertical = S.H > S.W;
+
+  const stage = document.getElementById('stage');
+  stage.style.width = S.W + 'px';
+  stage.style.height = S.H + 'px';
+
+  const th = S.theme;
+  const root = document.documentElement.style;
+  root.setProperty('--bg', th.bg);
+  root.setProperty('--fg', th.fg);
+  root.setProperty('--accent', th.accent);
+  root.setProperty('--accent2', th.accent2);
+  root.setProperty('--muted', rgba(th.fg, 0.55));
+  root.setProperty('--line', rgba(th.fg, 0.15));
+  root.setProperty('--grain-src', grainURI(spec.seed || 1));
+
+  const bgc = document.getElementById('bg');
+  S.BW = Math.max(2, Math.round(S.W * BG_SCALE));
+  S.BH = Math.max(2, Math.round(S.H * BG_SCALE));
+  bgc.width = S.BW; bgc.height = S.BH;
+  const fxc = document.getElementById('fx');
+  fxc.width = S.W; fxc.height = S.H;
+  S.gl = initGL(document.getElementById('bg'));
+  S.fxCtx = document.getElementById('fx').getContext('2d');
+  S.dom = document.getElementById('dom');
+
+  seedFx();
+  build();
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  seek(0);
+  return true;
+}
+
+/** A small tiled noise bitmap, generated once, used as the film grain. */
+function grainURI(seed) {
+  const n = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = n;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(n, n);
+  const r = rng(seed);
+  // Speckle, not a grey wash: each pixel is pure black or white with a random
+  // alpha. That reads as film grain under `normal` compositing, so we never
+  // pay for a blend mode on the capture path.
+  for (let i = 0; i < n * n; i++) {
+    const up = r() > 0.5;
+    const a = Math.pow(r(), 2.2) * 255;
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = up ? 255 : 0;
+    img.data[i * 4 + 3] = a;
+  }
+  ctx.putImageData(img, 0, 0);
+  return `url(${c.toDataURL('image/png')})`;
+}
+
+window.__CASED = {
+  load, seek,
+  get duration() { return S.spec ? S.spec.duration : 0; },
+  get size() { return [S.W, S.H]; },
+};
+</script>
+</body>
+</html>

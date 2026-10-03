@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cased2.0"
+version = "2.0.0"
+description = "Turn a repository into a cinematic launch film — scored, beat-cut and rendered, from one command."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+keywords = ["video", "launch", "trailer", "generative", "ffmpeg", "agent-skill"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Video",
+]
+# Deliberately empty. The pipeline is standard library only; Node, FFmpeg and
+# Chromium are external tools, not Python packages.
+dependencies = []
+
+[project.urls]
+Homepage = "https://akshatinnovate-png.github.io/CaseD/"
+Repository = "https://github.com/akshatinnovate-png/CaseD"
+
+[project.scripts]
+cased = "cased.cli:main"
+
+[tool.setuptools]
+packages = ["cased"]
+
+[tool.setuptools.package-data]
+cased = ["engine/*.html", "engine/*.mjs"]

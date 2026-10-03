@@ -1,0 +1,8 @@
+# Symlinked skill directories must stay symlinks on checkout. Git on Windows
+# needs core.symlinks=true and Developer Mode for these to materialise.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.mp4 binary
+*.wav binary

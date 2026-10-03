@@ -1,0 +1,11 @@
+{
+  "name": "cased",
+  "version": "2.0.0",
+  "description": "Turn a repository into a cinematic launch film — scored, beat-cut, rendered to MP4, with share copy.",
+  "homepage": "https://github.com/akshatinnovate-png/CaseD",
+  "license": "MIT",
+  "skills": [
+    { "name": "cased", "path": "../skills/cased/SKILL.md" },
+    { "name": "cased-slim", "path": "../skills/cased-slim/SKILL.md" }
+  ]
+}

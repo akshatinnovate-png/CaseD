@@ -1,0 +1,10 @@
+cased-output/
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
+*.log
+
+# Example score is 4.9 MB and fully regenerable from the seed in spec.json:
+#   python3 -m cased.score 24 cinematic examples/cased2.0/score.wav
+examples/**/score.wav

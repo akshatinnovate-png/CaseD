@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>cased2.0 — you shipped it, now make the trailer</title>
+<meta name="description" content="cased2.0 reads your repository and renders a cinematic launch film — score, motion, beat-matched cuts and share copy — from one command. No API keys, no cloud render, no subscription.">
+<meta name="theme-color" content="#06070C">
+<meta property="og:title" content="cased2.0 — you shipped it, now make the trailer">
+<meta property="og:description" content="Point it at a repo. Twenty-four seconds later you have a film, scored and cut to the beat.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF2D71'/><path d='M30 34h40v9H39v14h26v9H39v14h31v9H30z' fill='%23fff'/></svg>">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<!-- ===================== boot dialog (retro) ===================== -->
+<div id="boot" aria-hidden="true">
+  <div class="win boot-win">
+    <div class="bar"><span>cased2.0</span><span class="dots"><b></b><b></b></span></div>
+    <div class="body">
+      <div class="boot-line">Loading<span id="boot-dots">...</span></div>
+      <div class="boot-line dim" id="boot-task">shader programs, beat map</div>
+      <div class="boot-meter"><i id="boot-fill"></i><span id="boot-pct">0%</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== chrome ===================== -->
+<div id="cursor" aria-hidden="true"><i></i></div>
+<div id="grain" aria-hidden="true"></div>
+<div id="scanlines" aria-hidden="true"></div>
+
+<div id="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    <span>cased2.0 — v2.0.0 shipped</span><b>/</b>
+    <span>six directors, one command</span><b>/</b>
+    <span>the soundtrack is synthesised, not licensed</span><b>/</b>
+    <span>every cut lands on a beat</span><b>/</b>
+    <span>same seed, same film</span><b>/</b>
+    <span>no API keys · no cloud render · MIT</span><b>/</b>
+  </div>
+</div>
+
+<header id="nav">
+  <a class="brand" href="#top" aria-label="cased2.0 home">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="wordmark">cased<em>2.0</em></span>
+  </a>
+  <nav class="links" aria-label="Primary">
+    <a href="#what">What it does</a>
+    <a href="#directors">Directors</a>
+    <a href="#pipeline">How</a>
+    <a href="#install">Install</a>
+  </nav>
+  <a class="pill cta" href="#install"><span>Get it</span></a>
+</header>
+
+<aside id="badge" aria-hidden="true"><span>Built in the open</span></aside>
+
+<main id="top">
+
+<!-- ===================== hero ===================== -->
+<section id="hero">
+  <canvas id="hero-gl" aria-hidden="true"></canvas>
+  <canvas id="hero-fx" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <p class="kicker reveal">akshatinnovate-png / cased2.0</p>
+    <h1 class="reveal-lines">
+      <span class="l"><span>You shipped it.</span></span>
+      <span class="l"><span>Now make</span></span>
+      <span class="l"><span>the <em>trailer</em>.</span></span>
+    </h1>
+    <p class="lede reveal">
+      cased2.0 reads your repository — the git history, the language mix, the
+      actual source — writes a soundtrack to match, cuts the picture to the
+      beat, and renders a cinematic launch film. One command.
+    </p>
+    <div class="hero-cta reveal">
+      <a class="pill solid magnetic" href="#install"><span>Install it</span></a>
+      <a class="pill ghost magnetic" href="#directors"><span>See the directors</span></a>
+    </div>
+    <div class="hero-cmd reveal">
+      <code><b>$</b> python3 -m cased .</code>
+      <button class="copy" data-copy="python3 -m cased ." aria-label="Copy command">copy</button>
+    </div>
+  </div>
+  <div class="hero-meta" aria-hidden="true">
+    <span class="mono" id="fps-read">60 fps</span>
+    <span class="mono">1920×1080</span>
+    <span class="mono" id="bpm-read">92 BPM</span>
+  </div>
+  <div class="crop tl"></div><div class="crop tr"></div>
+  <div class="crop bl"></div><div class="crop br"></div>
+  <div class="scroll-hint" aria-hidden="true"><i></i>scroll</div>
+</section>
+
+<!-- ===================== marquee ===================== -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>ANALYZE</span><i>✦</i><span>SCORE</span><i>✦</i><span>COMPOSE</span><i>✦</i><span>RENDER</span><i>✦</i>
+    <span>ANALYZE</span><i>✦</i><span>SCORE</span><i>✦</i><span>COMPOSE</span><i>✦</i><span>RENDER</span><i>✦</i>
+  </div>
+</div>
+
+<!-- ===================== what it does ===================== -->
+<section id="what" class="pad">
+  <div class="sec-head">
+    <p class="kicker reveal">01 / what it does</p>
+    <h2 class="display reveal-lines">
+      <span class="l"><span>Most tools screenshot</span></span>
+      <span class="l"><span>a webpage. This one</span></span>
+      <span class="l"><span><em>reads the work.</em></span></span>
+    </h2>
+  </div>
+  <div class="feat-grid">
+    <article class="feat reveal"><span class="n">01</span>
+      <h3>It reads the repository</h3>
+      <p>Commit history, churn, language breakdown, entry points, test coverage, dependency count. Every number on screen is measured from your code — never invented.</p></article>
+    <article class="feat reveal"><span class="n">02</span>
+      <h3>Real source on screen</h3>
+      <p>It scores every file for on-screen appeal, finds the most photogenic contiguous slice, and types it out syntax-highlighted.</p></article>
+    <article class="feat reveal"><span class="n">03</span>
+      <h3>The score is synthesised</h3>
+      <p>Drums, sub bass, Karplus-Strong plucks, a pad stack, risers and sidechain compression — generated from scratch in the standard library. Music nobody else has.</p></article>
+    <article class="feat reveal"><span class="n">04</span>
+      <h3>Every cut lands on a beat</h3>
+      <p>The scorer picks the tempo first and returns a beat map. The editor snaps every shot boundary to it. That constraint is most of the difference between a slideshow and an edit.</p></article>
+    <article class="feat reveal"><span class="n">05</span>
+      <h3>Frame-stepped, not recorded</h3>
+      <p>The renderer calls <code>seek(t)</code> per frame and screenshots it. A slow laptop and a CI runner produce the same file. No dropped frames, ever.</p></article>
+    <article class="feat reveal"><span class="n">06</span>
+      <h3>Same seed, same film</h3>
+      <p>Reproducible end to end — analysis, arrangement, edit and render. Change the seed to roll a different cut of the same story.</p></article>
+  </div>
+</section>
+
+<!-- ===================== directors ===================== -->
+<section id="directors" class="pad">
+  <div class="sec-head">
+    <p class="kicker reveal">02 / directors</p>
+    <h2 class="display reveal-lines">
+      <span class="l"><span>One repo.</span></span>
+      <span class="l"><span><em>Six films.</em></span></span>
+    </h2>
+    <p class="sec-sub reveal">A director is a complete point of view — palette, background bed, pacing, transition vocabulary and the musical mood underneath. Hover one; it's running the renderer's own shader, live.</p>
+  </div>
+  <div class="dir-grid" id="dir-grid"></div>
+</section>
+
+<!-- ===================== pipeline ===================== -->
+<section id="pipeline" class="pad">
+  <div class="sec-head">
+    <p class="kicker reveal">03 / how it works</p>
+    <h2 class="display reveal-lines">
+      <span class="l"><span>Four stages.</span></span>
+      <span class="l"><span><em>All inspectable.</em></span></span>
+    </h2>
+    <p class="sec-sub reveal">Each stage writes its output to disk. Read it, hand-edit it, re-run the next one. Nothing is a black box.</p>
+  </div>
+  <ol class="stages">
+    <li class="stage reveal"><span class="sn">01</span>
+      <h3>analyze</h3><code>repo → story.json</code>
+      <p>Walks the tree and the git log. Finds the hero language, the busiest file, the milestones, and the slices of source worth showing.</p></li>
+    <li class="stage reveal"><span class="sn">02</span>
+      <h3>score</h3><code>duration → score.wav</code>
+      <p>Picks a tempo and a key, arranges intro/build/peak/resolve, synthesises every voice, and returns the beat map the edit is cut to.</p></li>
+    <li class="stage reveal"><span class="sn">03</span>
+      <h3>compose</h3><code>story + map → spec.json</code>
+      <p>Chooses which beats this repo has earned, allocates runtime, then snaps every cut onto the beat grid and section impacts.</p></li>
+    <li class="stage reveal"><span class="sn">04</span>
+      <h3>render</h3><code>spec → cased.mp4</code>
+      <p>Steps the scene engine frame by frame through headless Chromium and pipes the result straight into FFmpeg.</p></li>
+  </ol>
+  <div class="term-demo reveal">
+    <div class="tbar"><u style="background:#FF5F57"></u><u style="background:#FEBC2E"></u><u style="background:#28C840"></u><span>cased — bash</span></div>
+    <pre id="demo-out"></pre>
+  </div>
+</section>
+
+<!-- ===================== brutalist band (TypeSafe homage) ===================== -->
+<section id="proof">
+  <div class="proof-inner">
+    <h2 class="huge reveal-lines">
+      <span class="l"><span>24 seconds.</span></span>
+      <span class="l"><span>Zero dependencies.</span></span>
+    </h2>
+    <p class="proof-note mono">*Python standard library only. Node and FFmpeg render it. <a href="#install">(Proof)</a></p>
+    <div class="win-row">
+      <div class="win reveal">
+        <div class="bar"><span>cased2.0</span><span class="dots"><b></b><b></b></span></div>
+        <div class="body"><pre>$ python3 -m cased .
+
+1/4  reading the repository
+  ✓ 3,140 lines · 11 files · 1 commit
+2/4  writing the score
+  ✓ 92 BPM minor, 4 sections
+3/4  cutting the edit
+  ✓ 9 shots, snapped to the grid
+4/4  rendering
+  ✓ cased.mp4</pre></div>
+      </div>
+      <div class="win reveal">
+        <div class="bar"><span>EVERYTHING ELSE</span><span class="dots"><b></b><b></b></span></div>
+        <div class="body"><pre>$ sign up
+$ paste a URL
+$ wait in a queue
+$ pick a template
+$ hit the watermark
+$ upgrade to remove it
+$ renew monthly
+
+(still a slideshow)</pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== globe band (United Carriers homage) ===================== -->
+<section id="reach">
+  <canvas id="globe" aria-hidden="true"></canvas>
+  <div class="reach-inner">
+    <p class="kicker reveal">04 / output</p>
+    <h2 class="display caps reveal-lines">
+      <span class="l"><span>Every aspect</span></span>
+      <span class="l"><span>ratio you need</span></span>
+    </h2>
+    <p class="sec-sub reveal">16:9 for the README. 9:16 for Reels and Shorts. 1:1 and 4:5 for the feed. Plus a looping GIF, a poster frame that doubles as your OG image, and post-ready copy for X, LinkedIn, HN and Product Hunt.</p>
+    <div class="ratios reveal">
+      <div class="ratio"><i style="--w:16;--h:9"></i><span>16:9</span></div>
+      <div class="ratio"><i style="--w:9;--h:16"></i><span>9:16</span></div>
+      <div class="ratio"><i style="--w:1;--h:1"></i><span>1:1</span></div>
+      <div class="ratio"><i style="--w:4;--h:5"></i><span>4:5</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== install ===================== -->
+<section id="install" class="pad">
+  <div class="sec-head">
+    <p class="kicker reveal">05 / install</p>
+    <h2 class="display reveal-lines">
+      <span class="l"><span>Clone it.</span></span>
+      <span class="l"><span><em>Run it.</em></span></span>
+    </h2>
+  </div>
+  <div class="install-grid">
+    <div class="code-card reveal">
+      <h3>Standalone</h3>
+      <div class="codeblock"><pre><span class="c">git</span> clone https://github.com/akshatinnovate-png/CaseD
+<span class="c">cd</span> CaseD
+<span class="c">npm</span> i -g playwright && npx playwright install chromium
+<span class="c">python3</span> -m cased /path/to/your/project</pre>
+      <button class="copy" data-copy="git clone https://github.com/akshatinnovate-png/CaseD
+cd CaseD
+npm i -g playwright && npx playwright install chromium
+python3 -m cased /path/to/your/project">copy</button></div>
+    </div>
+    <div class="code-card reveal">
+      <h3>Claude Code</h3>
+      <div class="codeblock"><pre>/plugin marketplace add akshatinnovate-png/CaseD
+/plugin install cased@cased</pre>
+      <button class="copy" data-copy="/plugin marketplace add akshatinnovate-png/CaseD
+/plugin install cased@cased">copy</button></div>
+      <h3 style="margin-top:28px">Codex</h3>
+      <div class="codeblock"><pre>codex plugin marketplace add akshatinnovate-png/CaseD
+codex plugin add cased@cased</pre>
+      <button class="copy" data-copy="codex plugin marketplace add akshatinnovate-png/CaseD
+codex plugin add cased@cased">copy</button></div>
+    </div>
+  </div>
+  <p class="req mono reveal">Requires Python 3.9+ · Node 18+ · FFmpeg · Chromium (via Playwright)</p>
+</section>
+
+<!-- ===================== closing ===================== -->
+<section id="end">
+  <canvas id="end-gl" aria-hidden="true"></canvas>
+  <div class="end-inner">
+    <h2 class="end-word" id="end-word">CASED<em>2.0</em></h2>
+    <p class="reveal">You shipped it. Now make the trailer.</p>
+    <a class="pill solid big magnetic" href="https://github.com/akshatinnovate-png/CaseD"><span>Get it on GitHub</span></a>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="foot-grid">
+    <div><span class="mono dim">cased2.0</span><p>An independent reimagining of the idea behind <a href="https://github.com/latent-spaces/brag">/brag</a> — rebuilt from scratch with its own analyzer, renderer and synthesised score.</p></div>
+    <div><span class="mono dim">repo</span><p><a href="https://github.com/akshatinnovate-png/CaseD">akshatinnovate-png/CaseD</a></p></div>
+    <div><span class="mono dim">license</span><p>MIT</p></div>
+  </div>
+  <div class="foot-rule"></div>
+  <p class="mono dim tiny">Rendered with system fonts, a software rasteriser and no good reason to stop.</p>
+</footer>
+
+<script src="assets/bed.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>
