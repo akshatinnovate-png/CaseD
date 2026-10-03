@@ -1,0 +1,378 @@
+{
+  "version": "2.0",
+  "project": "cased2.0",
+  "director": "cinematic",
+  "director_label": "Cinematic",
+  "seed": 2025336532,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "duration": 24.0,
+  "theme": {
+    "bg": "#06070C",
+    "fg": "#FFFFFF",
+    "accent": "#7C5CFF",
+    "accent2": "#3572A5",
+    "grain": 0.055,
+    "scanlines": false,
+    "vignette": 1.0,
+    "letterbox": true,
+    "bg_mode": "aurora"
+  },
+  "shots": [
+    {
+      "type": "title",
+      "data": {
+        "kicker": "akshatinnovate-png/CaseD",
+        "text": "Turn a repository into a cinematic launch film",
+        "caps": false,
+        "sub": "",
+        "rule": true
+      },
+      "bg": "aurora",
+      "cam": "push",
+      "in": "cut",
+      "energy": 0.396,
+      "fx": [
+        "motes"
+      ],
+      "start": 0.0,
+      "dur": 2.4242
+    },
+    {
+      "type": "title",
+      "data": {
+        "kicker": "what it is",
+        "text": "Scored, beat-cut and rendered, from one command.",
+        "size": 118,
+        "perLine": 4,
+        "rule": false
+      },
+      "bg": "stars",
+      "cam": "pull",
+      "in": "rise",
+      "energy": 0.427,
+      "fx": [
+        "motes"
+      ],
+      "start": 2.4242,
+      "dur": 2.4243
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "5.4K",
+        "label": "lines of source"
+      },
+      "bg": "aurora",
+      "cam": "push",
+      "in": "fade",
+      "energy": 0.457,
+      "fx": [
+        "motes"
+      ],
+      "start": 4.8485,
+      "dur": 1.8182
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "2",
+        "label": "commits"
+      },
+      "bg": "rings",
+      "cam": "left",
+      "in": "zoom",
+      "energy": 0.488,
+      "fx": [
+        "motes"
+      ],
+      "start": 6.6667,
+      "dur": 1.8181
+    },
+    {
+      "type": "code",
+      "data": {
+        "path": "cased/cli.py",
+        "code": [
+          "def write_plan(outdir: Path, spec: dict, story: dict) -> None:",
+          "    lines = [",
+          "        f\"# {spec['project']} \u2014 edit plan\", \"\",",
+          "        f\"- **Director** {spec['director_label']} (`{spec['director']}`)\",",
+          "        f\"- **Runtime** {spec['duration']}s @ {spec['fps']}fps\",",
+          "        f\"- **Tempo** {spec['beatmap']['bpm']} BPM, {spec['beatmap']['scale'",
+          "        f\"- **Seed** `{spec['seed']}` (same seed, same film)\", \"\",",
+          "        \"## Shot list\", \"\",",
+          "        \"| # | in | type | start | dur | content |\",",
+          "        \"|--:|----|------|------:|----:|---------|\",",
+          "    ]",
+          "    for i, sh in enumerate(spec[\"shots\"], 1):",
+          "        d = sh.get(\"data\", {})",
+          "        blurb = (d.get(\"text\") or d.get(\"label\") or d.get(\"path\")"
+        ],
+        "caption": "the entry point",
+        "dur": 3.4
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.518,
+      "fx": [
+        "motes"
+      ],
+      "start": 8.4848,
+      "dur": 3.0304
+    },
+    {
+      "type": "bullets",
+      "data": {
+        "title": "what it does",
+        "items": [
+          "It reads the repository, not a webpage",
+          "Real source appears on screen",
+          "The soundtrack is generated, not licensed",
+          "Every cut lands on a beat",
+          "Frame-stepped, not screen-recorded"
+        ]
+      },
+      "bg": "stars",
+      "cam": "pull",
+      "in": "fade",
+      "energy": 0.549,
+      "fx": [
+        "motes"
+      ],
+      "start": 11.5152,
+      "dur": 3.0303
+    },
+    {
+      "type": "langs",
+      "data": {
+        "title": "built with",
+        "items": [
+          {
+            "name": "Python",
+            "share": 38.6,
+            "color": "#3572A5"
+          },
+          {
+            "name": "HTML",
+            "share": 26.4,
+            "color": "#E34C26"
+          },
+          {
+            "name": "JavaScript",
+            "share": 15.3,
+            "color": "#F1E05A"
+          },
+          {
+            "name": "Markdown",
+            "share": 12.2,
+            "color": "#9AA0A6"
+          },
+          {
+            "name": "CSS",
+            "share": 7.5,
+            "color": "#563D7C"
+          }
+        ]
+      },
+      "bg": "aurora",
+      "cam": "push",
+      "in": "rise",
+      "energy": 0.579,
+      "fx": [
+        "motes"
+      ],
+      "start": 14.5455,
+      "dur": 2.4242
+    },
+    {
+      "type": "code",
+      "data": {
+        "path": "docs/index.html",
+        "code": [
+          "<!-- ===================== chrome ===================== -->",
+          "<div id=\"cursor\" aria-hidden=\"true\"><i></i></div>",
+          "<div id=\"grain\" aria-hidden=\"true\"></div>",
+          "<div id=\"scanlines\" aria-hidden=\"true\"></div>",
+          "",
+          "<div id=\"ticker\" aria-hidden=\"true\">",
+          "  <div class=\"ticker-track\">",
+          "    <span>cased2.0 \u2014 v2.0.0 shipped</span><b>/</b>",
+          "    <span>six directors, one command</span><b>/</b>",
+          "    <span>the soundtrack is synthesised, not licensed</span><b>/</b>",
+          "    <span>every cut lands on a beat</span><b>/</b>",
+          "    <span>same seed, same film</span><b>/</b>",
+          "    <span>no API keys \u00b7 no cloud render \u00b7 MIT</span><b>/</b>",
+          "  </div>"
+        ],
+        "caption": "inside docs",
+        "dur": 3.0
+      },
+      "bg": "rings",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.61,
+      "fx": [
+        "motes"
+      ],
+      "start": 16.9697,
+      "dur": 2.4242
+    },
+    {
+      "type": "globe",
+      "data": {
+        "kicker": "available now",
+        "text": "Ship it anywhere",
+        "sub": "Open source \u00b7 MIT"
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "zoom",
+      "energy": 0.64,
+      "fx": [
+        "motes"
+      ],
+      "start": 19.3939,
+      "dur": 2.4243
+    },
+    {
+      "type": "endcard",
+      "data": {
+        "name": "cased2.0",
+        "sub": "https://github.com/akshatinnovate-png/CaseD",
+        "cta": "made with cased2.0"
+      },
+      "bg": "rings",
+      "cam": "pull",
+      "in": "fade",
+      "energy": 0.303,
+      "fx": [
+        "motes"
+      ],
+      "start": 21.8182,
+      "dur": 2.1818
+    }
+  ],
+  "beatmap": {
+    "bpm": 99,
+    "spb": 0.606061,
+    "bar": 2.424242,
+    "scale": "minor",
+    "root_midi": 48,
+    "duration": 26.2424,
+    "bars": [
+      0.0,
+      2.4242,
+      4.8485,
+      7.2727,
+      9.697,
+      12.1212,
+      14.5455,
+      16.9697,
+      19.3939,
+      21.8182,
+      24.2424
+    ],
+    "kicks": [
+      0.0,
+      1.2121,
+      2.4242,
+      3.6364,
+      4.8485,
+      6.0606,
+      6.6667,
+      7.2727,
+      8.1818,
+      8.4848,
+      9.3939,
+      9.697,
+      10.9091,
+      11.5152,
+      12.1212,
+      12.7273,
+      13.3333,
+      13.9394,
+      14.5455,
+      15.1515,
+      15.7576,
+      16.3636,
+      16.9697,
+      17.5758,
+      18.1818,
+      18.7879,
+      19.3939,
+      20.6061,
+      21.8182,
+      23.0303
+    ],
+    "accents": [
+      {
+        "time": 0.0,
+        "kind": "intro",
+        "weight": 0.5
+      },
+      {
+        "time": 4.8485,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 4.8485,
+        "kind": "build",
+        "weight": 0.7
+      },
+      {
+        "time": 12.1212,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 12.1212,
+        "kind": "peak",
+        "weight": 1.0
+      },
+      {
+        "time": 19.3939,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 19.3939,
+        "kind": "resolve",
+        "weight": 0.6
+      }
+    ],
+    "sections": [
+      {
+        "name": "intro",
+        "start": 0.0,
+        "bars": 2
+      },
+      {
+        "name": "build",
+        "start": 4.8485,
+        "bars": 3
+      },
+      {
+        "name": "peak",
+        "start": 12.1212,
+        "bars": 3
+      },
+      {
+        "name": "resolve",
+        "start": 19.3939,
+        "bars": 2
+      }
+    ],
+    "file": "score.wav"
+  },
+  "share": {
+    "x": "cased2.0\n\nTurn a repository into a cinematic launch film\n\n5,389 lines \u00b7 2 commits\n\nhttps://github.com/akshatinnovate-png/CaseD",
+    "linkedin": "I built cased2.0.\n\nTurn a repository into a cinematic launch film\n\nUnder the hood: Python, HTML, JavaScript.\n5,389 lines \u00b7 2 commits.\n\nIt's here: https://github.com/akshatinnovate-png/CaseD",
+    "hn": "Show HN: cased2.0 \u2013 Turn a repository into a cinematic launch film",
+    "product_hunt": "Turn a repository into a cinematic launch film",
+    "alt_text": "A cinematic launch film for cased2.0, described as: Turn a repository into a cinematic launch film. Title cards, measured statistics, real source code and an end card, cut to a synthesised soundtrack."
+  }
+}
