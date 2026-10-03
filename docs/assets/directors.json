@@ -1,0 +1,217 @@
+{
+ "cinematic": {
+  "label": "Cinematic",
+  "blurb": "Deep blacks, slow pushes, letterbox. Takes the work seriously.",
+  "mood": "cinematic",
+  "theme": "midnight",
+  "beds": [
+   "aurora",
+   "stars",
+   "aurora",
+   "rings"
+  ],
+  "cams": [
+   "push",
+   "pull",
+   "push",
+   "left"
+  ],
+  "ins": [
+   "fade",
+   "rise",
+   "fade",
+   "zoom",
+   "fade"
+  ],
+  "pace": 1.0,
+  "energy": 0.55,
+  "intensity": 0.85,
+  "fx": [
+   "motes"
+  ]
+ },
+ "brutalist": {
+  "label": "Brutalist",
+  "blurb": "Hot pink, hard cuts, dialog boxes, type the size of a bus.",
+  "mood": "brutalist",
+  "theme": "hotpink",
+  "beds": [
+   "plasma",
+   "plasma",
+   "plasma"
+  ],
+  "cams": [
+   "none",
+   "none",
+   "left",
+   "none"
+  ],
+  "ins": [
+   "cut",
+   "cut",
+   "push",
+   "cut",
+   "glitch"
+  ],
+  "pace": 0.86,
+  "energy": 0.85,
+  "intensity": 1.0,
+  "fx": [
+   "grid"
+  ]
+ },
+ "terminal": {
+  "label": "Terminal",
+  "blurb": "Phosphor green, scanlines, code first. For things with a prompt.",
+  "mood": "retro",
+  "theme": "phosphor",
+  "beds": [
+   "grid",
+   "grid",
+   "rings"
+  ],
+  "cams": [
+   "push",
+   "none",
+   "up"
+  ],
+  "ins": [
+   "cut",
+   "rise",
+   "glitch",
+   "cut"
+  ],
+  "pace": 0.92,
+  "energy": 0.65,
+  "intensity": 0.9,
+  "fx": [
+   "grid",
+   "motes"
+  ]
+ },
+ "hype": {
+  "label": "Hype",
+  "blurb": "Flash cuts, glitch, neon. Built to stop a thumb mid-scroll.",
+  "mood": "hype",
+  "theme": "neon",
+  "beds": [
+   "rings",
+   "plasma",
+   "grid",
+   "rings"
+  ],
+  "cams": [
+   "push",
+   "right",
+   "pull",
+   "push"
+  ],
+  "ins": [
+   "flash",
+   "glitch",
+   "zoom",
+   "flash",
+   "cut"
+  ],
+  "pace": 0.72,
+  "energy": 0.95,
+  "intensity": 1.15,
+  "fx": [
+   "motes",
+   "wave"
+  ]
+ },
+ "orbit": {
+  "label": "Orbit",
+  "blurb": "Starfield, a turning globe, long arcs. For things that ship wide.",
+  "mood": "triumphant",
+  "theme": "orbit",
+  "beds": [
+   "stars",
+   "stars",
+   "aurora",
+   "stars"
+  ],
+  "cams": [
+   "pull",
+   "push",
+   "left",
+   "push"
+  ],
+  "ins": [
+   "fade",
+   "rise",
+   "fade",
+   "zoom"
+  ],
+  "pace": 1.08,
+  "energy": 0.6,
+  "intensity": 0.95,
+  "fx": [
+   "motes"
+  ]
+ },
+ "creative": {
+  "label": "Creative",
+  "blurb": "Long-form. Shows the architecture, the history and the clever bit.",
+  "mood": "cinematic",
+  "theme": "signal",
+  "beds": [
+   "aurora",
+   "stars",
+   "grid",
+   "aurora",
+   "rings",
+   "stars"
+  ],
+  "cams": [
+   "push",
+   "none",
+   "pull",
+   "none",
+   "left",
+   "none"
+  ],
+  "ins": [
+   "fade",
+   "rise",
+   "fade",
+   "zoom",
+   "rise",
+   "fade"
+  ],
+  "pace": 1.0,
+  "energy": 0.6,
+  "intensity": 0.9,
+  "fx": [
+   "motes"
+  ]
+ },
+ "warm": {
+  "label": "Warm",
+  "blurb": "Soft light, unhurried, generous margins. Quietly confident.",
+  "mood": "warm",
+  "theme": "hearth",
+  "beds": [
+   "aurora",
+   "aurora",
+   "rings"
+  ],
+  "cams": [
+   "push",
+   "pull",
+   "up"
+  ],
+  "ins": [
+   "fade",
+   "rise",
+   "fade"
+  ],
+  "pace": 1.18,
+  "energy": 0.45,
+  "intensity": 0.7,
+  "fx": [
+   "motes"
+  ]
+ }
+}

@@ -187,6 +187,24 @@ def main(argv) -> int:
                        capture_output=True, text=True)
     check("docs/assets/bed.js matches the engine shader", r.returncode == 0,
           r.stderr.strip())
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "sync_data.py"), "--check"],
+                       capture_output=True, text=True)
+    check("themes.json and directors.json match their modules", r.returncode == 0,
+          (r.stdout + r.stderr).strip().splitlines()[-1] if (r.stdout or r.stderr) else "")
+
+    # ---- the browser port agrees with the Python pipeline ------------------
+    # The web Make flow re-implements the RNG, the scorer and the composer so
+    # the site needs no backend. If the two drift, the film someone previews on
+    # the web stops being the film the CLI renders from the same seed.
+    if not fast:
+        print("\nbrowser port")
+        for script, label in (("check_random.mjs", "browser RNG matches CPython's"),
+                              ("check_score.mjs", "browser scorer matches cased/score.py"),
+                              ("check_compose.mjs", "browser composer matches cased/compose.py")):
+            r = subprocess.run(["node", str(ROOT / "scripts" / script)],
+                               capture_output=True, text=True, cwd=ROOT)
+            tail = (r.stdout or r.stderr).strip().splitlines()
+            check(label, r.returncode == 0, tail[-1] if tail else "")
     for p in ("skills/cased/SKILL.md", "skills/cased-slim/SKILL.md",
               ".claude/skills/cased/SKILL.md", ".agents/skills/cased/SKILL.md",
               ".opencode/skills/cased/SKILL.md"):
