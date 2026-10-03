@@ -201,7 +201,26 @@ def main(argv) -> int:
     fxl = set(_re.findall(r"^([a-z][a-zA-Z0-9_]*)\(c, t, p, th, W, H\)", stage, _re.M))
 
     from cased import themes as themes_mod
-    check("50+ themes", len(themes_mod.names()) >= 50, str(len(themes_mod.names())))
+    check("60+ themes", len(themes_mod.names()) >= 60, str(len(themes_mod.names())))
+    # A repeated key in the THEMES literal overwrites the earlier theme in
+    # silence, so the count stays plausible while a look disappears. Compare
+    # the declarations in the source against the dict that survived them.
+    tsrc = (ROOT / "cased" / "themes.py").read_text(encoding="utf-8")
+    declared = _re.findall(r'^    "([a-z0-9_]+)":', tsrc, _re.M)
+    dupes = sorted({k for k in declared if declared.count(k) > 1})
+    check("no theme name is declared twice", not dupes, str(dupes))
+    check("every declared theme survives into THEMES",
+          len(declared) == len(themes_mod.THEMES),
+          f"declared {len(declared)}, loaded {len(themes_mod.THEMES)}")
+
+    # A light frontend needs a light theme in its own hue family to match, and
+    # for a while every light theme here was warm red/orange.
+    def _lum(hexs):
+        c = [int(hexs[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    light = [n for n, t in themes_mod.THEMES.items() if _lum(t["bg"]) >= 0.45]
+    check("10+ light themes", len(light) >= 10, str(len(light)))
     check("every theme is well formed",
           all(_re.fullmatch(r"#[0-9A-Fa-f]{6}", t[k])
               for t in themes_mod.THEMES.values()
