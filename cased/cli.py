@@ -24,6 +24,7 @@ import time
 from pathlib import Path
 
 from .analyze import analyze, plural
+from .insight import inspect
 from .compose import compose
 from .directors import DIRECTORS, pick
 from . import score as score_mod
@@ -87,8 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path", nargs="?", default=".", help="project directory (default: .)")
     p.add_argument("--director", "-d", choices=list(DIRECTORS),
                    help="visual style (default: chosen from the project)")
-    p.add_argument("--duration", "-t", type=float, default=24.0,
-                   help="runtime in seconds (default: 24)")
+    p.add_argument("--duration", "-t", type=float, default=0.0,
+                   help="runtime in seconds (default: 24, or 60 with --creative)")
+    p.add_argument("--creative", "-c", action="store_true",
+                   help="long-form mode: reads the architecture, the history and "
+                        "the signature function, and cuts a detailed ~60s film")
     p.add_argument("--format", "-f", default="16:9",
                    help="16:9 | 9:16 | 1:1 | 4:5 | all (comma-separated ok)")
     p.add_argument("--quality", "-q", default="high", choices=["draft", "good", "high"])
@@ -215,6 +219,12 @@ def main(argv=None) -> int:
     if not root.is_dir():
         die(f"{root} is not a directory")
 
+    # Creative mode is long-form by default; 24s cannot carry its shot list.
+    duration = args.duration or (60.0 if args.creative else 24.0)
+    if args.creative and duration < 40:
+        say(f"creative mode at {duration:g}s will drop most structural beats; "
+            f"40s or more is where it earns its keep", "!")
+
     preflight(need_render=not args.plan_only)
 
     outdir = Path(args.out).resolve()
@@ -236,7 +246,22 @@ def main(argv=None) -> int:
     say(f"hero language: {story.get('hero_language') or 'n/a'}; "
         f"code moments: {len(story.get('code_moments', []))}", "✓")
 
-    dname, d = pick(args.director, story.get("kind", "project"))
+    insight = None
+    if args.creative:
+        ins_obj = inspect(root, story)
+        insight = json.loads(ins_obj.to_json())
+        (outdir / "insight.json").write_text(ins_obj.to_json(), encoding="utf-8")
+        say(f"{len(insight['modules'])} modules, {len(insight['edges'])} imports; "
+            f"hub: {insight['hub'] or 'n/a'}", "✓")
+        if insight.get("signature"):
+            sg = insight["signature"]
+            say(f"signature function: {sg['name']}() in {sg['module']} "
+                f"({sg['lines']} lines)", "✓")
+        if insight.get("techniques"):
+            say("techniques: " + ", ".join(t["name"] for t in insight["techniques"][:4]), "✓")
+
+    dname, d = pick(args.director or ("creative" if args.creative else None),
+                    story.get("kind", "project"))
     say(f"director: {C['b']}{d['label']}{C['r']} — {d['blurb']}", "✓")
 
     # --- 2. score ---------------------------------------------------------
@@ -244,12 +269,12 @@ def main(argv=None) -> int:
     wav = outdir / "score.wav"
     if args.no_audio:
         # Still need the beat map: the edit is cut to it either way.
-        _, beatmap = score_mod.compose_score(args.duration, d["mood"],
+        _, beatmap = score_mod.compose_score(duration, d["mood"],
                                              args.seed or story["seed"], 0.0)
         wav = None
         say("silent render — beat map still drives the cuts", "✓")
     else:
-        beatmap = score_mod.render(args.duration, wav, d["mood"],
+        beatmap = score_mod.render(duration, wav, d["mood"],
                                    args.seed or story["seed"], d["intensity"])
         say(f"{beatmap['bpm']} BPM {beatmap['scale']}, "
             f"{len(beatmap['sections'])} sections -> {wav.name}", "✓")
@@ -259,13 +284,14 @@ def main(argv=None) -> int:
     formats = resolve_formats(args.format)
     specs = []
     for key, (w, h, stem) in formats:
-        spec = compose(story, beatmap, args.duration, dname, w, h,
-                       args.seed or story["seed"])
+        spec = compose(story, beatmap, duration, dname, w, h,
+                       args.seed or story["seed"], insight=insight)
         sp = outdir / (f"spec-{stem}.json" if len(formats) > 1 else "spec.json")
         sp.write_text(json.dumps(spec, indent=2), encoding="utf-8")
         specs.append((key, w, h, stem, sp, spec))
     base = specs[0][5]
-    say(f"{len(base['shots'])} shots, cuts snapped to the {beatmap['bpm']} BPM grid", "✓")
+    say(f"{len(base['shots'])} shots over {duration:g}s "
+        f"({base['mode']} mode), cuts snapped to the {beatmap['bpm']} BPM grid", "✓")
     write_plan(outdir, base, story)
     write_share(outdir, base)
     say("PLAN.md + SHARE.md written", "✓")

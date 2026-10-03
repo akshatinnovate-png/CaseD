@@ -131,3 +131,117 @@ Add a builder to `BUILD` in `stage.html` returning
 **only style properties** — the renderer calls `seek(t)` out of order, so any
 state that accumulates between frames will produce a film that does not match
 its own seed.
+
+---
+
+# Creative-mode shots
+
+Added by `--creative`. These show *structure* rather than assertions, which is
+what lets a sixty-second film hold attention: past about twenty seconds the eye
+has learned the format and starts reading the runtime instead of the work.
+
+All of them are **conditional on evidence**. The composer only schedules a shot
+when the insight pass found enough to fill it — a repo with no import graph gets
+no `arch` shot rather than an empty one.
+
+## `arch`
+
+The import graph, drawn as a graph.
+
+```json
+{ "title": "architecture",
+  "nodes": [{ "label": "analyze", "hub": true }],
+  "edges": [[0, 3]],
+  "note": "11 modules, 10 imports between them" }
+```
+
+Hub at the centre, everything else on a ring, edges stroking in after the nodes
+land. A force simulation would not be deterministic across runs and the ring
+reads more clearly anyway. Nodes with no edges are dropped by the composer.
+
+## `tree`
+
+Top-level directories by line count, with proportional bars.
+
+```json
+{ "title": "what is in here",
+  "items": [{ "path": "cased", "loc": 4169, "bar": 1.0, "is_dir": true }] }
+```
+
+`bar` is 0–1, normalised to the largest entry. Maximum nine rows.
+
+## `flow`
+
+The pipeline, with a pulse travelling through it so it reads as a process
+rather than a row of boxes.
+
+```json
+{ "title": "how it runs",
+  "items": [{ "name": "analyze", "note": "story.json" }] }
+```
+
+Notes are truncated hard — they are secondary, and a wrapped four-line note in
+a small box is unreadable. Maximum five stages.
+
+## `callout`
+
+**The centrepiece.** Real source with one line called out and the rest dimmed.
+
+```json
+{ "path": "cased/insight.py — build_graph()",
+  "code": ["def build_graph(...):", "..."],
+  "highlight": 6,
+  "label": "the idea",
+  "note": "Import graph over first-party modules." }
+```
+
+`highlight` is an index into `code`. The shot renders at most **13 rows**
+(`CALLOUT_LINES` in `compose.py`) — a focus index past that points at a line
+nobody ever sees, so slice the code first and choose the focus from the slice.
+
+## `heatmap`
+
+Six months of commit activity.
+
+```json
+{ "title": "the last six months", "days": [0, 3, 1, ...], "note": "6 commits on 2026-10-03" }
+```
+
+Seven rows, one column per week, filling left to right like a calendar being
+written. The composer requires **at least 12 active days** — a heatmap of one
+busy afternoon is an empty grid with a dot in it.
+
+## `constellation`
+
+Techniques found in the source, as drifting pills.
+
+```json
+{ "title": "techniques in the source", "items": [{ "name": "Karplus-Strong synthesis" }] }
+```
+
+Laid out on alternating radius bands at even angles, then relaxed with a
+push-apart pass using measured widths so labels never collide. The relaxation
+is iterative rather than physical, which keeps it deterministic.
+
+## `compare`
+
+"This, not that" — pulled from a README sentence of that shape.
+
+```json
+{ "left": "The synthesised score is a score", "right": "a song",
+  "leftLabel": "cased2.0", "rightLabel": "not" }
+```
+
+The right column renders struck through at reduced opacity.
+
+## `bigquote`
+
+One claim, full-bleed, word by word.
+
+```json
+{ "text": "The numbers on screen are measured from your code, never invented",
+  "source": "from the README" }
+```
+
+Type auto-fits the length. Claims are ranked so none ends on a dangling word —
+a quote ending in "behind" or "and" reads as a fragment at this size.

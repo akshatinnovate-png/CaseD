@@ -108,6 +108,65 @@ instructions at `skills/cased/SKILL.md`.
 
 </details>
 
+## Creative mode
+
+The default 24-second film is a trailer. `--creative` is a **documentary**.
+
+```bash
+python3 -m cased . --creative
+```
+
+It runs a second, deeper pass over the repository and cuts a ~60-second film
+out of what it finds:
+
+- **The import graph.** Every first-party module and the edges between them,
+  drawn as an actual graph, with the architectural hub — the thing everything
+  leans on — highlighted. Orphan nodes are dropped; they say nothing.
+- **The signature function.** Not the entry point: the function the project is
+  *about*. Scored on size, a name that means something, a real docstring, and
+  branching density, then typed on screen with the single most important line
+  called out and everything else dimmed.
+- **The techniques actually in the source.** Karplus-Strong synthesis, ray
+  marching, zero-copy IO, property-based testing — about forty probes, each
+  needing two independent sightings and at least one in real code. A single
+  mention in prose proves nothing and is ignored.
+- **The shape of the history.** Six months of commits as a heatmap — but only
+  if there is a spread of activity to show. One busy afternoon is an empty grid.
+- **The author's own claims.** The strongest sentences from the README, ranked
+  so none ends on a dangling preposition, shown full-bleed.
+- **What is in here.** Every top-level directory by line count.
+- **The pipeline**, if the project describes itself as one.
+
+Every one of those beats is **conditional on evidence**. A repo with no import
+graph gets no architecture shot rather than an empty one, which is why the film
+is specific to your project instead of a template with your name dropped in.
+
+```bash
+python3 -m cased . --creative --duration 90      # longer
+python3 -m cased . --creative --format 9:16      # vertical
+python3 -m cased . --creative --plan-only        # read the edit first
+```
+
+Creative mode writes an extra `insight.json` alongside the usual outputs —
+the full deep read, including the graph and every technique with its evidence.
+
+### Shot vocabulary
+
+Standard mode has nine shot types. Creative mode adds eight more, because a
+minute of title cards and stat counters is a minute of nothing — past about
+twenty seconds the eye has learned the format and starts reading the clock.
+
+| Shot | Shows |
+|---|---|
+| `arch` | the import graph, hub highlighted, edges drawing in |
+| `tree` | top-level directories by line count |
+| `flow` | the pipeline, with a pulse running through it |
+| `callout` | the signature function, one line called out |
+| `heatmap` | six months of commits |
+| `constellation` | techniques found in the source, collision-free |
+| `compare` | "this, not that", pulled from the README |
+| `bigquote` | one claim, full-bleed |
+
 ## The directors
 
 A director is a complete point of view: palette, background bed, pacing,
@@ -121,6 +180,7 @@ transition vocabulary, and the musical mood underneath. Same repo, six films.
 | `hype` | Flash cuts, glitch, neon. Built to stop a thumb mid-scroll. |
 | `orbit` | Starfield, a turning globe, long arcs. For things that ship wide. |
 | `warm` | Soft light, unhurried, generous margins. Quietly confident. |
+| `creative` | Long-form. Shows the architecture, the history and the clever bit. Used by `--creative`. |
 
 ```bash
 python3 -m cased . --director brutalist
@@ -166,7 +226,8 @@ cased-output/
 python3 -m cased [path] [options]
 
   -d, --director NAME     cinematic | brutalist | terminal | hype | orbit | warm
-  -t, --duration SECONDS  runtime (default: 24)
+  -c, --creative          long-form: architecture, history, the clever bit (~60s)
+  -t, --duration SECONDS  runtime (default: 24; 60 with --creative)
   -f, --format SPEC       16:9 | 9:16 | 1:1 | 4:5 | all   (comma-separated ok)
   -q, --quality LEVEL     draft | good | high              (default: high)
   -o, --out DIR           output directory  (default: cased-output)
@@ -212,7 +273,9 @@ frame, which is how real film grain reads anyway and roughly halves the file.
 
 ```
 cased/
-  analyze.py         repo -> story.json          ~560 lines, stdlib only
+  analyze.py         repo -> story.json          ~600 lines, stdlib only
+  insight.py         the deep read for --creative: import graph, signature
+                     function, techniques, cadence, claims
   score.py           the synthesiser + arranger  ~470 lines, stdlib only
   compose.py         the edit, snapped to beats
   directors.py       the six points of view

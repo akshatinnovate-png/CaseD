@@ -1,0 +1,190 @@
+{
+  "name": "cased2.0",
+  "tagline": "Turn a repository into a cinematic launch film",
+  "description": "Turn a repository into a cinematic launch film — scored, beat-cut and rendered, from one command.",
+  "url": "https://github.com/akshatinnovate-png/CaseD",
+  "repo": "akshatinnovate-png/CaseD",
+  "license": "MIT",
+  "hero_language": "Python",
+  "hero_color": "#3572A5",
+  "stack": [
+    "Python"
+  ],
+  "languages": [
+    {
+      "name": "Python",
+      "loc": 2760,
+      "files": 10,
+      "color": "#3572A5",
+      "share": 41.8
+    },
+    {
+      "name": "HTML",
+      "loc": 1891,
+      "files": 2,
+      "color": "#E34C26",
+      "share": 28.7
+    },
+    {
+      "name": "JavaScript",
+      "loc": 825,
+      "files": 3,
+      "color": "#F1E05A",
+      "share": 12.5
+    },
+    {
+      "name": "Markdown",
+      "loc": 716,
+      "files": 9,
+      "color": "#9AA0A6",
+      "share": 10.9
+    },
+    {
+      "name": "CSS",
+      "loc": 404,
+      "files": 1,
+      "color": "#563D7C",
+      "share": 6.1
+    }
+  ],
+  "stats": {
+    "files": 34,
+    "loc": 6596,
+    "test_files": 0,
+    "directories": 6,
+    "commits": 6,
+    "contributors": 2,
+    "age_days": 0,
+    "first_commit": "2026-10-03",
+    "last_commit": "2026-10-03",
+    "branch": "main",
+    "themes": [
+      "pages",
+      "workflow",
+      "itself",
+      "cased"
+    ],
+    "hottest_file": ".github/workflows/ci.yml",
+    "hottest_file_touches": 3
+  },
+  "highlights": [
+    {
+      "value": "6.6K",
+      "label": "lines of source",
+      "unit": ""
+    },
+    {
+      "value": "6",
+      "label": "commits",
+      "unit": ""
+    },
+    {
+      "value": "34",
+      "label": "files",
+      "unit": ""
+    },
+    {
+      "value": "2",
+      "label": "contributors",
+      "unit": ""
+    },
+    {
+      "value": "5",
+      "label": "languages",
+      "unit": ""
+    }
+  ],
+  "code_moments": [
+    {
+      "path": "cased/cli.py",
+      "lang": "Python",
+      "color": "#3572A5",
+      "start_line": 162,
+      "code": [
+        "def write_plan(outdir: Path, spec: dict, story: dict) -> None:",
+        "    lines = [",
+        "        f\"# {spec['project']} — edit plan\", \"\",",
+        "        f\"- **Director** {spec['director_label']} (`{spec['director']}`)\",",
+        "        f\"- **Runtime** {spec['duration']}s @ {spec['fps']}fps\",",
+        "        f\"- **Tempo** {spec['beatmap']['bpm']} BPM, {spec['beatmap']['scale'",
+        "        f\"- **Seed** `{spec['seed']}` (same seed, same film)\", \"\",",
+        "        \"## Shot list\", \"\",",
+        "        \"| # | in | type | start | dur | content |\",",
+        "        \"|--:|----|------|------:|----:|---------|\",",
+        "    ]",
+        "    for i, sh in enumerate(spec[\"shots\"], 1):",
+        "        d = sh.get(\"data\", {})",
+        "        blurb = (d.get(\"text\") or d.get(\"label\") or d.get(\"path\")"
+      ],
+      "caption": "the entry point"
+    },
+    {
+      "path": "docs/index.html",
+      "lang": "HTML",
+      "color": "#E34C26",
+      "start_line": 30,
+      "code": [
+        "<!-- ===================== chrome ===================== -->",
+        "<div id=\"cursor\" aria-hidden=\"true\"><i></i></div>",
+        "<div id=\"grain\" aria-hidden=\"true\"></div>",
+        "<div id=\"scanlines\" aria-hidden=\"true\"></div>",
+        "",
+        "<div id=\"ticker\" aria-hidden=\"true\">",
+        "  <div class=\"ticker-track\">",
+        "    <span>cased2.0 — v2.0.0 shipped</span><b>/</b>",
+        "    <span>six directors, one command</span><b>/</b>",
+        "    <span>the soundtrack is synthesised, not licensed</span><b>/</b>",
+        "    <span>every cut lands on a beat</span><b>/</b>",
+        "    <span>same seed, same film</span><b>/</b>",
+        "    <span>no API keys · no cloud render · MIT</span><b>/</b>",
+        "  </div>"
+      ],
+      "caption": "inside docs"
+    },
+    {
+      "path": "scripts/sync_bed.py",
+      "lang": "Python",
+      "color": "#3572A5",
+      "start_line": 38,
+      "code": [
+        " *   const bed = new CasedBed(canvas, { mode: 'aurora', bg, a1, a2 });",
+        " *   bed.start();     // rAF loop",
+        " *   bed.frame(t);    // or drive it yourself",
+        " */",
+        "class CasedBed {",
+        "  static MODES = { aurora: 0, grid: 1, stars: 2, plasma: 3, rings: 4 };",
+        "",
+        "  constructor(canvas, opts = {}) {",
+        "    this.canvas = canvas;",
+        "    this.opts = Object.assign(",
+        "      { mode: 'aurora', energy: 0.6, seed: 7, scale: 0.6,",
+        "        bg: '#06070C', a1: '#FF2D71', a2: '#00F0FF', speed: 1 }, opts);",
+        "    this.ok = this._init();",
+        "    this._raf = null;"
+      ],
+      "caption": "inside scripts"
+    }
+  ],
+  "features": [
+    "It reads the repository, not a webpage",
+    "Real source appears on screen",
+    "The soundtrack is generated, not licensed",
+    "Every cut lands on a beat",
+    "Frame-stepped, not screen-recorded",
+    "Same seed, same film"
+  ],
+  "commands": [],
+  "timeline": [
+    {
+      "kind": "fix",
+      "text": "Fix copy duplication, plural agreement and GIF size"
+    },
+    {
+      "kind": "feature",
+      "text": "Add the film cased2.0 made about itself"
+    }
+  ],
+  "kind": "visual",
+  "mood": "cinematic",
+  "seed": 2101561457
+}

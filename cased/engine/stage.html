@@ -1049,6 +1049,520 @@ BUILD.endcard = (d) => {
 };
 
 /* =======================================================================
+   Creative-mode shots
+   -----------------------------------------------------------------------
+   The long-form vocabulary. A sixty-second film cannot be built from title
+   cards and stat counters -- past about twenty seconds the eye has seen the
+   trick and starts reading the runtime instead of the work. These shots all
+   show *structure*: what the repo is made of, how it fits together, and
+   which part of it is the clever one.
+   ======================================================================= */
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const svg = (tag, attrs = {}) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+};
+
+/* --- arch: the import graph, drawn as a real graph --------------------- */
+BUILD.arch = (d) => {
+  const n = el('div', 'layer');
+  const nodes = (d.nodes || []).slice(0, 14);
+  const edges = (d.edges || []).filter(e => e[0] < nodes.length && e[1] < nodes.length);
+
+  const head = el('div', 'kicker', esc(d.title || 'architecture'));
+  head.style.cssText = `position:absolute;left:${px(S.vertical ? 76 : 132)};top:${px(S.vertical ? 150 : 110)};--k:${px(17)};`;
+  n.appendChild(head);
+
+  const cx = S.W / 2, cy = S.H * (S.vertical ? 0.52 : 0.54);
+  const R = Math.min(S.W, S.H) * (S.vertical ? 0.33 : 0.30);
+
+  // Hub at the centre, everything else on a ring. A force simulation would
+  // not be deterministic across runs, and the ring reads more clearly anyway.
+  const hubIdx = Math.max(0, nodes.findIndex(x => x.hub));
+  const ring = nodes.map((_, i) => i).filter(i => i !== hubIdx);
+  const pos = [];
+  nodes.forEach((_, i) => { pos[i] = [cx, cy]; });
+  ring.forEach((idx, k) => {
+    const a = (k / ring.length) * Math.PI * 2 - Math.PI / 2;
+    pos[idx] = [cx + Math.cos(a) * R, cy + Math.sin(a) * R * (S.vertical ? 0.78 : 0.92)];
+  });
+
+  const sv = svg('svg', { width: S.W, height: S.H });
+  sv.style.cssText = 'position:absolute;inset:0;overflow:visible;';
+  n.appendChild(sv);
+
+  const lines = edges.map(([a, b]) => {
+    const l = svg('line', {
+      x1: pos[a][0], y1: pos[a][1], x2: pos[b][0], y2: pos[b][1],
+      stroke: rgba(S.theme.accent, 0.5), 'stroke-width': 1.6 * U(),
+    });
+    const len = Math.hypot(pos[b][0] - pos[a][0], pos[b][1] - pos[a][1]) || 1;
+    l.setAttribute('stroke-dasharray', len);
+    l.setAttribute('stroke-dashoffset', len);
+    l.__len = len;
+    sv.appendChild(l);
+    return l;
+  });
+
+  const chips = nodes.map((nd, i) => {
+    const c = el('div');
+    const isHub = i === hubIdx;
+    const size = isHub ? 1.0 : 0.78;
+    c.style.cssText =
+      `position:absolute;left:${pos[i][0]}px;top:${pos[i][1]}px;` +
+      `transform:translate(-50%,-50%);padding:${px(10 * size)} ${px(17 * size)};` +
+      `border-radius:${px(9)};font-family:var(--mono);font-size:${px(19 * size)};` +
+      `white-space:nowrap;border:1px solid ${isHub ? 'var(--accent)' : 'var(--line)'};` +
+      `background:${isHub ? rgba(S.theme.accent, .17) : 'rgba(10,11,20,.80)'};` +
+      `color:${isHub ? 'var(--fg)' : 'var(--muted)'};font-weight:${isHub ? 700 : 400};`;
+    c.textContent = nd.label;
+    n.appendChild(c);
+    return c;
+  });
+
+  let note = null;
+  if (d.note) {
+    note = el('div', 'sub');
+    note.style.cssText =
+      `position:absolute;left:50%;transform:translateX(-50%);bottom:${px(S.vertical ? 170 : 74)};` +
+      `--s:${px(23)};text-align:center;max-width:${px(900)};`;
+    note.textContent = d.note;
+    n.appendChild(note);
+  }
+
+  return {
+    node: n,
+    update(lt) {
+      head.style.opacity = seg(lt, 0, .45).toFixed(3);
+      chips.forEach((c, i) => {
+        const isHub = i === hubIdx;
+        const p = seg(lt, isHub ? 0.10 : 0.30 + i * 0.045,
+                          (isHub ? 0.10 : 0.30 + i * 0.045) + 0.5, E.back);
+        c.style.opacity = clamp(p * 1.7).toFixed(3);
+        c.style.transform = `translate(-50%,-50%) scale(${lerp(0.6, 1, p).toFixed(3)})`;
+      });
+      lines.forEach((l, i) => {
+        const p = seg(lt, 0.55 + i * 0.05, 1.25 + i * 0.05, E.expo);
+        l.setAttribute('stroke-dashoffset', (l.__len * (1 - p)).toFixed(1));
+      });
+      if (note) note.style.opacity = seg(lt, 1.2, 1.9).toFixed(3);
+    },
+  };
+};
+
+/* --- tree: what the repo is actually made of -------------------------- */
+BUILD.tree = (d) => {
+  const n = el('div', 'layer');
+  const pad = S.vertical ? 76 : 180;
+  const box = el('div');
+  box.style.cssText = `position:absolute;left:${px(pad)};right:${px(pad)};top:50%;transform:translateY(-50%);`;
+  n.appendChild(box);
+
+  const head = el('div', 'kicker', esc(d.title || 'what is in here'));
+  head.style.cssText = `--k:${px(18)};margin-bottom:${px(34)};`;
+  box.appendChild(head);
+
+  const rows = (d.items || []).slice(0, 9).map(it => {
+    const row = el('div');
+    row.style.cssText =
+      `display:flex;align-items:center;gap:${px(20)};padding:${px(11)} 0;` +
+      `font-family:var(--mono);font-size:${px(S.vertical ? 24 : 29)};`;
+    const name = el('span', '', esc((it.is_dir ? '' : '') + it.path));
+    name.style.cssText = `flex:0 0 ${px(S.vertical ? 230 : 310)};color:var(--fg);`;
+    const track = el('span');
+    track.style.cssText = `flex:1;height:${px(13)};background:rgba(255,255,255,.08);border-radius:${px(7)};overflow:hidden;`;
+    const bar = el('i');
+    bar.style.cssText =
+      `display:block;height:100%;width:${Math.max(3, it.bar * 100)}%;` +
+      `background:linear-gradient(90deg, var(--accent), var(--accent2));transform-origin:left;`;
+    track.appendChild(bar);
+    const num = el('span', '', `${it.loc.toLocaleString()}`);
+    num.style.cssText = `flex:0 0 ${px(120)};text-align:right;color:var(--muted);font-size:${px(21)};`;
+    row.append(name, track, num);
+    box.appendChild(row);
+    return { row, bar };
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      head.style.opacity = seg(lt, 0, .45).toFixed(3);
+      rows.forEach((r, i) => {
+        const t0 = 0.16 + i * 0.085;
+        const p = seg(lt, t0, t0 + 0.5, E.expo);
+        r.row.style.opacity = p.toFixed(3);
+        r.row.style.transform = `translateX(${((1 - p) * 30).toFixed(1)}px)`;
+        r.bar.style.transform = `scaleX(${seg(lt, t0 + 0.12, t0 + 0.9, E.expo).toFixed(3)})`;
+      });
+    },
+  };
+};
+
+/* --- flow: the pipeline, with something actually moving through it ----- */
+BUILD.flow = (d) => {
+  const n = el('div', 'layer');
+  const stages = (d.items || []).slice(0, 5);
+  const vertical = S.vertical;
+
+  const head = el('div', 'kicker', esc(d.title || 'how it runs'));
+  head.style.cssText =
+    `position:absolute;left:50%;transform:translateX(-50%);top:${px(vertical ? 320 : 190)};--k:${px(18)};`;
+  n.appendChild(head);
+
+  const rail = el('div');
+  rail.style.cssText = vertical
+    ? `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;gap:${px(22)};align-items:center;`
+    : `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:${px(18)};align-items:center;`;
+  n.appendChild(rail);
+
+  const boxes = [];
+  stages.forEach((st, i) => {
+    if (i > 0) {
+      const arrow = el('div', 'mono', vertical ? '↓' : '→');
+      arrow.style.cssText = `font-size:${px(26)};color:var(--accent);opacity:0;`;
+      rail.appendChild(arrow);
+      boxes.push({ el: arrow, arrow: true });
+    }
+    const b = el('div');
+    b.style.cssText =
+      `border:1px solid var(--line);border-radius:${px(15)};padding:${px(30)} ${px(30)};` +
+      `background:rgba(10,11,20,.82);text-align:center;` +
+      `min-width:${px(vertical ? 330 : 258)};max-width:${px(vertical ? 420 : 300)};`;
+    const t = el('div', 'mono', esc(st.name));
+    t.style.cssText = `font-size:${px(31)};color:var(--fg);font-weight:600;`;
+    b.appendChild(t);
+    if (st.note) {
+      const sub = el('div', '', esc(String(st.note).slice(0, 44)));
+      sub.style.cssText =
+        `font-size:${px(19)};color:var(--muted);margin-top:${px(10)};line-height:1.35;`;
+      b.appendChild(sub);
+    }
+    rail.appendChild(b);
+    boxes.push({ el: b, arrow: false });
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      head.style.opacity = seg(lt, 0, .45).toFixed(3);
+      boxes.forEach((b, i) => {
+        const t0 = 0.18 + i * 0.09;
+        const p = seg(lt, t0, t0 + 0.48, b.arrow ? E.out : E.back);
+        b.el.style.opacity = clamp(p * 1.6).toFixed(3);
+        if (!b.arrow)
+          b.el.style.transform = `scale(${lerp(0.84, 1, p).toFixed(3)})`;
+      });
+      // A pulse runs the rail once the stages are up, so the diagram reads
+      // as a process rather than a row of boxes.
+      const pulse = seg(lt, 0.9, 2.4, E.inOut);
+      boxes.forEach((b, i) => {
+        if (b.arrow) return;
+        const idx = i / Math.max(boxes.length - 1, 1);
+        const d2 = Math.abs(pulse - idx);
+        const glow = Math.max(0, 1 - d2 * 5);
+        b.el.style.borderColor = glow > 0.02
+          ? rgba(S.theme.accent, 0.25 + glow * 0.75) : 'rgba(255,255,255,.15)';
+        b.el.style.boxShadow = glow > 0.02
+          ? `0 0 ${px(34 * glow)} ${rgba(S.theme.accent, 0.42 * glow)}` : 'none';
+      });
+    },
+  };
+};
+
+/* --- callout: real code, with the clever line pointed at --------------- */
+BUILD.callout = (d) => {
+  const n = el('div', 'layer');
+  const code = (d.code || []).slice(0, 13);
+  const W = S.vertical ? 0.90 : 0.62;
+
+  const term = el('div', 'term');
+  term.style.cssText =
+    `left:${S.vertical ? '50%' : '7%'};top:50%;width:${(W * 100).toFixed(1)}%;` +
+    `transform:${S.vertical ? 'translate(-50%,-50%)' : 'translateY(-50%)'};`;
+  n.appendChild(term);
+
+  const bar = el('div', 'tbar');
+  ['#FF5F57', '#FEBC2E', '#28C840'].forEach(c => {
+    const u = el('u'); u.style.background = c; bar.appendChild(u);
+  });
+  bar.appendChild(el('span', '', `&nbsp;&nbsp;${esc(d.path || 'source')}`));
+  term.appendChild(bar);
+
+  const pre = el('pre');
+  pre.style.setProperty('--cs', px(S.vertical ? 20 : 24));
+  pre.innerHTML = code.map((l, i) =>
+    `<span data-ln="${i}" style="display:block">${highlight(l) || '&nbsp;'}</span>`).join('');
+  term.appendChild(pre);
+
+  // The annotation: a label beside the terminal, with a leader line to the
+  // highlighted row. This is the shot that says "look at THIS".
+  const label = el('div');
+  const side = S.vertical;
+  label.style.cssText = side
+    ? `position:absolute;left:50%;transform:translateX(-50%);bottom:${px(210)};width:${px(620)};text-align:center;`
+    : `position:absolute;right:${px(110)};top:50%;transform:translateY(-50%);width:${px(430)};`;
+  const lt_ = el('div', 'kicker', esc(d.label || 'the idea'));
+  lt_.style.cssText = `--k:${px(15)};margin-bottom:${px(14)};`;
+  const lb = el('div', '', esc(d.note || ''));
+  lb.style.cssText = `font-size:${px(27)};line-height:1.42;font-weight:500;`;
+  label.append(lt_, lb);
+  n.appendChild(label);
+
+  return {
+    node: n,
+    update(lt) {
+      const ip = seg(lt, 0, 0.6, E.expo);
+      term.style.opacity = ip.toFixed(3);
+      term.style.transform =
+        (S.vertical ? 'translate(-50%,-50%)' : 'translateY(-50%)') +
+        ` scale(${lerp(0.96, 1, ip).toFixed(4)})`;
+
+      // Dim every line except the one being called out.
+      const focus = seg(lt, 0.7, 1.4, E.expo);
+      const hl = d.highlight;
+      [...pre.children].forEach((row, i) => {
+        const on = hl == null || i === hl;
+        row.style.opacity = on ? '1' : (1 - focus * 0.80).toFixed(3);
+        if (i === hl && focus > 0.02) {
+          row.style.background = rgba(S.theme.accent, 0.22 * focus);
+          row.style.boxShadow =
+            `inset ${px(3)} 0 0 ${rgba(S.theme.accent, focus)}`;
+        } else {
+          row.style.background = 'transparent';
+          row.style.boxShadow = 'none';
+        }
+      });
+      const lp = seg(lt, 1.0, 1.7, E.expo);
+      label.style.opacity = lp.toFixed(3);
+      label.style.transform =
+        (S.vertical ? 'translateX(-50%)' : 'translateY(-50%)') +
+        ` translateX(${((1 - lp) * (S.vertical ? 0 : 26)).toFixed(1)}px)`;
+    },
+  };
+};
+
+/* --- heatmap: the shape of the history -------------------------------- */
+BUILD.heatmap = (d) => {
+  const n = el('div', 'layer');
+  const days = d.days || [];
+  const weeks = Math.max(1, Math.ceil(days.length / 7));
+  const box = el('div');
+  box.style.cssText = `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;`;
+  n.appendChild(box);
+
+  const head = el('div', 'kicker', esc(d.title || 'six months of commits'));
+  head.style.cssText = `--k:${px(18)};margin-bottom:${px(32)};`;
+  box.appendChild(head);
+
+  const grid = el('div');
+  const cell = (S.vertical ? 13 : 17);
+  grid.style.cssText =
+    `display:grid;grid-template-rows:repeat(7, ${px(cell)});grid-auto-flow:column;` +
+    `grid-auto-columns:${px(cell)};gap:${px(3)};justify-content:center;`;
+  box.appendChild(grid);
+
+  const peak = Math.max(1, ...days);
+  const cells = days.map(v => {
+    const c = el('i');
+    const k = v === 0 ? 0 : 0.22 + 0.78 * Math.pow(v / peak, 0.55);
+    c.style.cssText =
+      `display:block;border-radius:${px(3)};background:${v === 0
+        ? 'rgba(255,255,255,.13)' : rgba(S.theme.accent, k)};` +
+      (v === 0 ? '' : `box-shadow:0 0 ${px(9)} ${rgba(S.theme.accent, k * .55)};`);
+    grid.appendChild(c);
+    return c;
+  });
+
+  let note = null;
+  if (d.note) {
+    note = el('div', 'sub');
+    note.style.cssText = `--s:${px(23)};margin-top:${px(30)};`;
+    note.textContent = d.note;
+    box.appendChild(note);
+  }
+
+  return {
+    node: n,
+    update(lt) {
+      head.style.opacity = seg(lt, 0, .4).toFixed(3);
+      // Fill left-to-right like a calendar being written.
+      const sweep = seg(lt, 0.15, 1.5, E.out) * weeks;
+      cells.forEach((c, i) => {
+        const wk = Math.floor(i / 7);
+        const p = clamp(sweep - wk);
+        c.style.opacity = p.toFixed(3);
+        c.style.transform = `scale(${lerp(0.4, 1, p).toFixed(3)})`;
+      });
+      if (note) note.style.opacity = seg(lt, 1.3, 1.9).toFixed(3);
+    },
+  };
+};
+
+/* --- constellation: the techniques actually found in the source -------- */
+BUILD.constellation = (d) => {
+  const n = el('div', 'layer');
+  const items = (d.items || []).slice(0, 9);
+
+  const head = el('div', 'kicker', esc(d.title || 'techniques in play'));
+  head.style.cssText =
+    `position:absolute;left:50%;transform:translateX(-50%);top:${px(S.vertical ? 250 : 150)};--k:${px(18)};`;
+  n.appendChild(head);
+
+  const cx = S.W / 2, cy = S.H * 0.54;
+  const RX = S.W * (S.vertical ? 0.36 : 0.30), RY = S.H * (S.vertical ? 0.26 : 0.27);
+  const r = rng(S.spec.seed + 17);
+
+  const chips = items.map((it, i) => {
+    // Alternate radius bands and even angles: a purely random scatter clumps,
+    // and clumped pills overlap into an unreadable smear.
+    const a = (i / items.length) * Math.PI * 2 + (r() - 0.5) * 0.22;
+    const rad = (i % 2 ? 0.96 : 0.62) + (r() - 0.5) * 0.10;
+    const c = el('div');
+    c.style.cssText =
+      `position:absolute;left:0;top:0;transform:translate(-50%,-50%);` +
+      `padding:${px(12)} ${px(20)};border-radius:999px;white-space:nowrap;` +
+      `border:1px solid ${rgba(S.theme.accent2, .45)};background:rgba(8,9,14,.88);` +
+      `font-size:${px(23)};font-weight:600;`;
+    c.textContent = it.name || it;
+    n.appendChild(c);
+    return { el: c, ph: r() * 6.28,
+             x: cx + Math.cos(a) * RX * rad, y: cy + Math.sin(a) * RY * rad };
+  });
+
+  // Relax overlaps. A handful of passes is plenty for nine pills and keeps the
+  // layout deterministic, which a physics simulation would not.
+  const pad = 14 * U();
+  for (let pass = 0; pass < 36; pass++) {
+    let moved = false;
+    for (let i = 0; i < chips.length; i++) {
+      for (let j = i + 1; j < chips.length; j++) {
+        const A = chips[i], B = chips[j];
+        const aw = A.el.offsetWidth / 2 + pad, ah = A.el.offsetHeight / 2 + pad;
+        const bw = B.el.offsetWidth / 2 + pad, bh = B.el.offsetHeight / 2 + pad;
+        const dx = B.x - A.x, dy = B.y - A.y;
+        const ox = aw + bw - Math.abs(dx), oy = ah + bh - Math.abs(dy);
+        if (ox <= 0 || oy <= 0) continue;
+        moved = true;
+        if (ox / (aw + bw) < oy / (ah + bh)) {
+          const push = (ox / 2) * (dx < 0 ? -1 : 1);
+          A.x -= push; B.x += push;
+        } else {
+          const push = (oy / 2) * (dy < 0 ? -1 : 1);
+          A.y -= push; B.y += push;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  chips.forEach(c => {
+    c.x = clamp(c.x, c.el.offsetWidth / 2 + 24 * U(), S.W - c.el.offsetWidth / 2 - 24 * U());
+    c.y = clamp(c.y, S.H * 0.30, S.H * 0.86);
+    c.el.style.left = c.x + 'px';
+    c.el.style.top = c.y + 'px';
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      head.style.opacity = seg(lt, 0, .45).toFixed(3);
+      chips.forEach((c, i) => {
+        const t0 = 0.14 + i * 0.075;
+        const p = seg(lt, t0, t0 + 0.55, E.back);
+        // A slow independent drift keeps the field alive without wandering.
+        const dx = Math.sin(lt * 0.7 + c.ph) * 7 * U();
+        const dy = Math.cos(lt * 0.55 + c.ph) * 5 * U();
+        c.el.style.opacity = clamp(p * 1.6).toFixed(3);
+        c.el.style.transform =
+          `translate(-50%,-50%) translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) ` +
+          `scale(${lerp(0.55, 1, p).toFixed(3)})`;
+      });
+    },
+  };
+};
+
+/* --- compare: this, not that ------------------------------------------ */
+BUILD.compare = (d) => {
+  const n = el('div', 'layer');
+  const pad = S.vertical ? 70 : 150;
+  const wrap = el('div');
+  wrap.style.cssText = S.vertical
+    ? `position:absolute;left:${px(pad)};right:${px(pad)};top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:${px(30)};`
+    : `position:absolute;left:${px(pad)};right:${px(pad)};top:50%;transform:translateY(-50%);display:flex;gap:${px(40)};align-items:stretch;`;
+  n.appendChild(wrap);
+
+  const col = (text, kicker, win) => {
+    const c = el('div');
+    c.style.cssText =
+      `flex:1;padding:${px(34)};border-radius:${px(16)};` +
+      `border:1px solid ${win ? 'var(--accent)' : 'var(--line)'};` +
+      `background:${win ? rgba(S.theme.accent, .11) : 'rgba(255,255,255,.028)'};`;
+    const k = el('div', 'kicker', esc(kicker));
+    k.style.cssText = `--k:${px(15)};margin-bottom:${px(18)};color:${win ? 'var(--accent)' : 'var(--faint, rgba(255,255,255,.4))'};`;
+    const t = el('div', '', esc(text));
+    t.style.cssText =
+      `font-size:${px(S.vertical ? 34 : 42)};font-weight:700;letter-spacing:-.025em;` +
+      `line-height:1.14;${win ? '' : 'opacity:.52;text-decoration:line-through;text-decoration-thickness:2px;'}`;
+    c.append(k, t);
+    return c;
+  };
+
+  const left = col(d.left || '', d.leftLabel || 'cased2.0', true);
+  const right = col(d.right || '', d.rightLabel || 'everything else', false);
+  wrap.append(left, right);
+
+  return {
+    node: n,
+    update(lt) {
+      const lp = seg(lt, 0.10, 0.80, E.expo);
+      left.style.opacity = lp.toFixed(3);
+      left.style.transform = `translateX(${((1 - lp) * -40).toFixed(1)}px)`;
+      const rp = seg(lt, 0.28, 0.98, E.expo);
+      right.style.opacity = (rp * 0.92).toFixed(3);
+      right.style.transform = `translateX(${((1 - rp) * 40).toFixed(1)}px)`;
+    },
+  };
+};
+
+/* --- bigquote: one sentence, full bleed -------------------------------- */
+BUILD.bigquote = (d) => {
+  const n = el('div', 'layer');
+  const pad = S.vertical ? 76 : 160;
+  const box = el('div');
+  box.style.cssText = `position:absolute;left:${px(pad)};right:${px(pad)};top:50%;transform:translateY(-50%);`;
+  n.appendChild(box);
+
+  const mark = el('div', '', '&ldquo;');
+  mark.style.cssText =
+    `font-size:${px(150)};line-height:.6;color:var(--accent);opacity:0;margin-bottom:${px(12)};font-weight:800;`;
+  box.appendChild(mark);
+
+  const text = String(d.text || '');
+  const size = text.length <= 44 ? 86 : text.length <= 72 ? 68 : 54;
+  const t = splitWords(text, S.vertical ? 4 : 6);
+  t.wrap.className = 'display';
+  t.wrap.style.cssText = `--s:${px(S.vertical ? size * 0.78 : size)};line-height:1.06;`;
+  box.appendChild(t.wrap);
+
+  let src = null;
+  if (d.source) {
+    src = el('div', 'kicker', esc(d.source));
+    src.style.cssText = `--k:${px(15)};margin-top:${px(32)};color:var(--muted);`;
+    box.appendChild(src);
+  }
+
+  return {
+    node: n,
+    update(lt) {
+      mark.style.opacity = (seg(lt, 0, .45) * 0.9).toFixed(3);
+      riseIn(t.nodes, lt, 0.18, 0.038, 0.72);
+      if (src) src.style.opacity = seg(lt, 0.9, 1.5).toFixed(3);
+    },
+  };
+};
+
+/* =======================================================================
    Composition
    ======================================================================= */
 

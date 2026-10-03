@@ -101,6 +101,25 @@ DIRECTORS = {
         "fx": ["motes"],
     },
 
+    # Long-form. Built for --creative: structure over slogans, and enough
+    # visual register to hold a full minute without repeating itself.
+    "creative": {
+        "label": "Creative",
+        "blurb": "Long-form. Shows the architecture, the history and the clever bit.",
+        "mood": "cinematic",
+        "theme": {
+            "bg": "#05060B", "fg": "#FFFFFF",
+            "accent": "#5B8CFF", "accent2": "#FF5CA8",
+            "grain": 0.048, "scanlines": False, "vignette": 1.0,
+            "letterbox": True, "bg_mode": "aurora",
+        },
+        "beds": ["aurora", "stars", "grid", "aurora", "rings", "stars"],
+        "cams": ["push", "none", "pull", "none", "left", "none"],
+        "ins": ["fade", "rise", "fade", "zoom", "rise", "fade"],
+        "pace": 1.0, "energy": 0.6, "intensity": 0.9,
+        "fx": ["motes"],
+    },
+
     # Soft, warm, human. For libraries and tools that are a kindness.
     "warm": {
         "label": "Warm",

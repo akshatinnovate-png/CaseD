@@ -1,0 +1,684 @@
+{
+  "version": "2.0",
+  "project": "cased2.0",
+  "director": "creative",
+  "director_label": "Creative",
+  "mode": "creative",
+  "seed": 2101561457,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "duration": 60.0,
+  "theme": {
+    "bg": "#05060B",
+    "fg": "#FFFFFF",
+    "accent": "#5B8CFF",
+    "accent2": "#FF5CA8",
+    "grain": 0.048,
+    "scanlines": false,
+    "vignette": 1.0,
+    "letterbox": true,
+    "bg_mode": "aurora"
+  },
+  "shots": [
+    {
+      "type": "title",
+      "data": {
+        "kicker": "akshatinnovate-png/CaseD",
+        "text": "Turn a repository into a cinematic launch film",
+        "caps": false,
+        "rule": true
+      },
+      "bg": "aurora",
+      "cam": "push",
+      "in": "cut",
+      "energy": 0.432,
+      "fx": [
+        "motes"
+      ],
+      "start": 0.0,
+      "dur": 3.2967
+    },
+    {
+      "type": "bigquote",
+      "data": {
+        "text": "The numbers on screen are measured from your code, never invented",
+        "source": "from the README"
+      },
+      "bg": "stars",
+      "cam": "push",
+      "in": "rise",
+      "energy": 0.452,
+      "fx": [
+        "motes"
+      ],
+      "start": 3.2967,
+      "dur": 3.956
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "6.6K",
+        "label": "lines of source"
+      },
+      "bg": "grid",
+      "cam": "pull",
+      "in": "fade",
+      "energy": 0.472,
+      "fx": [
+        "motes"
+      ],
+      "start": 7.2527,
+      "dur": 1.9781
+    },
+    {
+      "type": "tree",
+      "data": {
+        "title": "what is in here",
+        "items": [
+          {
+            "path": "cased",
+            "loc": 4253,
+            "files": 10,
+            "bar": 1.0,
+            "is_dir": true
+          },
+          {
+            "path": "docs",
+            "loc": 1322,
+            "files": 4,
+            "bar": 0.311,
+            "is_dir": true
+          },
+          {
+            "path": "skills",
+            "loc": 426,
+            "files": 5,
+            "bar": 0.1,
+            "is_dir": true
+          },
+          {
+            "path": "scripts",
+            "loc": 305,
+            "files": 2,
+            "bar": 0.072,
+            "is_dir": true
+          },
+          {
+            "path": "(root)",
+            "loc": 203,
+            "files": 1,
+            "bar": 0.048,
+            "is_dir": false
+          },
+          {
+            "path": "examples",
+            "loc": 87,
+            "files": 3,
+            "bar": 0.02,
+            "is_dir": true
+          }
+        ]
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "zoom",
+      "energy": 0.492,
+      "fx": [
+        "motes"
+      ],
+      "start": 9.2308,
+      "dur": 4.6154
+    },
+    {
+      "type": "arch",
+      "data": {
+        "title": "architecture",
+        "nodes": [
+          {
+            "label": "analyze",
+            "hub": true
+          },
+          {
+            "label": "directors",
+            "hub": false
+          },
+          {
+            "label": "compose",
+            "hub": false
+          },
+          {
+            "label": "insight",
+            "hub": false
+          },
+          {
+            "label": "cli",
+            "hub": false
+          },
+          {
+            "label": "selftest",
+            "hub": false
+          }
+        ],
+        "edges": [
+          [
+            5,
+            0
+          ],
+          [
+            5,
+            1
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            4,
+            3
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "note": "11 modules, 10 imports between them \u2014 everything leans on analyze"
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "rise",
+      "energy": 0.5,
+      "fx": [
+        "motes"
+      ],
+      "start": 13.8462,
+      "dur": 4.6153
+    },
+    {
+      "type": "flow",
+      "data": {
+        "title": "how it runs",
+        "items": [
+          {
+            "name": "analyze",
+            "note": "story.json"
+          },
+          {
+            "name": "score",
+            "note": "score.wav"
+          },
+          {
+            "name": "compose",
+            "note": "spec.json"
+          },
+          {
+            "name": "render",
+            "note": "cased.mp4"
+          }
+        ]
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.5,
+      "fx": [
+        "motes"
+      ],
+      "start": 18.4615,
+      "dur": 4.6154
+    },
+    {
+      "type": "callout",
+      "data": {
+        "path": "cased/insight.py \u2014 build_graph()",
+        "code": [
+          "def build_graph(root: Path, ins: Insight) -> dict:",
+          "    \"\"\"Import graph over first-party modules. Third-party edges are droppe",
+          "    they describe the ecosystem, not this codebase's shape.\"\"\"",
+          "    files: dict = {}",
+          "    for path, rel in walk_sources(root):",
+          "        ext = path.suffix.lower()",
+          "        if ext not in (\".py\", \".js\", \".mjs\", \".ts\", \".tsx\", \".jsx\"):",
+          "            continue",
+          "        if TEST_RE.search(rel):",
+          "            continue",
+          "        text = _read(path)",
+          "        if not text:",
+          "            continue"
+        ],
+        "highlight": 6,
+        "label": "the idea",
+        "note": "Import graph over first-party modules. Third-party edges are dropped -- they describe the ecosystem, not this codebase's shape."
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.5,
+      "fx": [
+        "motes"
+      ],
+      "start": 23.0769,
+      "dur": 4.6154
+    },
+    {
+      "type": "code",
+      "data": {
+        "path": "cased/cli.py",
+        "code": [
+          "def write_plan(outdir: Path, spec: dict, story: dict) -> None:",
+          "    lines = [",
+          "        f\"# {spec['project']} \u2014 edit plan\", \"\",",
+          "        f\"- **Director** {spec['director_label']} (`{spec['director']}`)\",",
+          "        f\"- **Runtime** {spec['duration']}s @ {spec['fps']}fps\",",
+          "        f\"- **Tempo** {spec['beatmap']['bpm']} BPM, {spec['beatmap']['scale'",
+          "        f\"- **Seed** `{spec['seed']}` (same seed, same film)\", \"\",",
+          "        \"## Shot list\", \"\",",
+          "        \"| # | in | type | start | dur | content |\",",
+          "        \"|--:|----|------|------:|----:|---------|\",",
+          "    ]",
+          "    for i, sh in enumerate(spec[\"shots\"], 1):",
+          "        d = sh.get(\"data\", {})",
+          "        blurb = (d.get(\"text\") or d.get(\"label\") or d.get(\"path\")"
+        ],
+        "caption": "the entry point",
+        "dur": 3.2
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "rise",
+      "energy": 0.572,
+      "fx": [
+        "motes"
+      ],
+      "start": 27.6923,
+      "dur": 3.9561
+    },
+    {
+      "type": "constellation",
+      "data": {
+        "title": "techniques in the source",
+        "items": [
+          {
+            "name": "GPU shaders"
+          },
+          {
+            "name": "Video encoding"
+          },
+          {
+            "name": "Deterministic generation"
+          },
+          {
+            "name": "Dynamics processing"
+          },
+          {
+            "name": "Headless browser automation"
+          },
+          {
+            "name": "Karplus-Strong synthesis"
+          },
+          {
+            "name": "Procedural noise"
+          },
+          {
+            "name": "Parsing"
+          }
+        ]
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.5,
+      "fx": [
+        "motes"
+      ],
+      "start": 31.6484,
+      "dur": 3.956
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "6",
+        "label": "commits"
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "zoom",
+      "energy": 0.612,
+      "fx": [
+        "motes"
+      ],
+      "start": 35.6044,
+      "dur": 1.978
+    },
+    {
+      "type": "langs",
+      "data": {
+        "title": "built with",
+        "items": [
+          {
+            "name": "Python",
+            "share": 41.8,
+            "color": "#3572A5"
+          },
+          {
+            "name": "HTML",
+            "share": 28.7,
+            "color": "#E34C26"
+          },
+          {
+            "name": "JavaScript",
+            "share": 12.5,
+            "color": "#F1E05A"
+          },
+          {
+            "name": "Markdown",
+            "share": 10.9,
+            "color": "#9AA0A6"
+          },
+          {
+            "name": "CSS",
+            "share": 6.1,
+            "color": "#563D7C"
+          }
+        ]
+      },
+      "bg": "rings",
+      "cam": "left",
+      "in": "rise",
+      "energy": 0.632,
+      "fx": [
+        "motes"
+      ],
+      "start": 37.5824,
+      "dur": 3.2967
+    },
+    {
+      "type": "bullets",
+      "data": {
+        "title": "what it does",
+        "items": [
+          "It reads the repository, not a webpage",
+          "Real source appears on screen",
+          "The soundtrack is generated, not licensed",
+          "Every cut lands on a beat",
+          "Frame-stepped, not screen-recorded"
+        ]
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.652,
+      "fx": [
+        "motes"
+      ],
+      "start": 40.8791,
+      "dur": 4.6154
+    },
+    {
+      "type": "compare",
+      "data": {
+        "left": "The synthesised score is a score",
+        "right": "a song",
+        "leftLabel": "cased2.0",
+        "rightLabel": "not"
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.5,
+      "fx": [
+        "motes"
+      ],
+      "start": 45.4945,
+      "dur": 3.956
+    },
+    {
+      "type": "bigquote",
+      "data": {
+        "text": "There is no GPU in most CI containers, so WebGL runs on SwiftShader",
+        "source": ""
+      },
+      "bg": "stars",
+      "cam": "push",
+      "in": "rise",
+      "energy": 0.692,
+      "fx": [
+        "motes"
+      ],
+      "start": 49.4505,
+      "dur": 3.9561
+    },
+    {
+      "type": "globe",
+      "data": {
+        "kicker": "available now",
+        "text": "Ship it anywhere",
+        "sub": "Open source \u00b7 MIT"
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.712,
+      "fx": [
+        "motes"
+      ],
+      "start": 53.4066,
+      "dur": 3.2967
+    },
+    {
+      "type": "endcard",
+      "data": {
+        "name": "cased2.0",
+        "sub": "https://github.com/akshatinnovate-png/CaseD",
+        "cta": "made with cased2.0"
+      },
+      "bg": "rings",
+      "cam": "pull",
+      "in": "zoom",
+      "energy": 0.33,
+      "fx": [
+        "motes"
+      ],
+      "start": 56.7033,
+      "dur": 3.2967
+    }
+  ],
+  "beatmap": {
+    "bpm": 91,
+    "spb": 0.659341,
+    "bar": 2.637363,
+    "scale": "minor",
+    "root_midi": 45,
+    "duration": 62.6593,
+    "bars": [
+      0.0,
+      2.6374,
+      5.2747,
+      7.9121,
+      10.5495,
+      13.1868,
+      15.8242,
+      18.4615,
+      21.0989,
+      23.7363,
+      26.3736,
+      29.011,
+      31.6484,
+      34.2857,
+      36.9231,
+      39.5604,
+      42.1978,
+      44.8352,
+      47.4725,
+      50.1099,
+      52.7473,
+      55.3846,
+      58.022,
+      60.6593
+    ],
+    "kicks": [
+      0.0,
+      1.3187,
+      2.6374,
+      3.956,
+      5.2747,
+      6.5934,
+      7.9121,
+      9.2308,
+      10.5495,
+      11.8681,
+      12.5275,
+      13.1868,
+      14.1758,
+      14.5055,
+      15.4945,
+      15.8242,
+      17.1429,
+      17.8022,
+      18.4615,
+      19.4505,
+      19.7802,
+      20.7692,
+      21.0989,
+      22.4176,
+      23.0769,
+      23.7363,
+      24.7253,
+      25.0549,
+      26.044,
+      26.3736,
+      27.033,
+      27.6923,
+      28.3516,
+      29.011,
+      29.6703,
+      30.3297,
+      30.989,
+      31.6484,
+      32.3077,
+      32.967,
+      33.6264,
+      34.2857,
+      34.9451,
+      35.6044,
+      36.0989,
+      36.5934,
+      36.9231,
+      37.5824,
+      38.2418,
+      38.9011,
+      39.5604,
+      40.2198,
+      40.8791,
+      41.5385,
+      42.1978,
+      42.8571,
+      43.5165,
+      44.1758,
+      44.8352,
+      45.4945,
+      46.1538,
+      46.6484,
+      47.1429,
+      47.4725,
+      48.1319,
+      48.7912,
+      49.4505,
+      50.1099,
+      51.4286,
+      52.7473,
+      54.0659,
+      55.3846,
+      56.7033,
+      58.022,
+      59.3407
+    ],
+    "accents": [
+      {
+        "time": 0.0,
+        "kind": "intro",
+        "weight": 0.5
+      },
+      {
+        "time": 10.5495,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 10.5495,
+        "kind": "build",
+        "weight": 0.7
+      },
+      {
+        "time": 26.3736,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 26.3736,
+        "kind": "peak",
+        "weight": 1.0
+      },
+      {
+        "time": 50.1099,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 50.1099,
+        "kind": "resolve",
+        "weight": 0.6
+      }
+    ],
+    "sections": [
+      {
+        "name": "intro",
+        "start": 0.0,
+        "bars": 4
+      },
+      {
+        "name": "build",
+        "start": 10.5495,
+        "bars": 6
+      },
+      {
+        "name": "peak",
+        "start": 26.3736,
+        "bars": 9
+      },
+      {
+        "name": "resolve",
+        "start": 50.1099,
+        "bars": 4
+      }
+    ],
+    "file": "score.wav"
+  },
+  "share": {
+    "x": "cased2.0\n\nTurn a repository into a cinematic launch film\n\n6,596 lines \u00b7 6 commits\n\nhttps://github.com/akshatinnovate-png/CaseD",
+    "linkedin": "I built cased2.0.\n\nTurn a repository into a cinematic launch film\n\nUnder the hood: Python, HTML, JavaScript.\n6,596 lines \u00b7 6 commits.\n\nIt's here: https://github.com/akshatinnovate-png/CaseD",
+    "hn": "Show HN: cased2.0 \u2013 Turn a repository into a cinematic launch film",
+    "product_hunt": "Turn a repository into a cinematic launch film",
+    "alt_text": "A creative launch film for cased2.0, described as: Turn a repository into a cinematic launch film. Title cards, measured statistics, real source code and an end card, cut to a synthesised soundtrack."
+  }
+}

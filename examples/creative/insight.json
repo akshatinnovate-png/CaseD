@@ -1,0 +1,490 @@
+{
+  "modules": [
+    {
+      "id": "scripts/selftest",
+      "label": "selftest",
+      "dir": "scripts",
+      "loc": 158,
+      "deg_in": 0,
+      "deg_out": 3
+    },
+    {
+      "id": "scripts/sync_bed",
+      "label": "sync_bed",
+      "dir": "scripts",
+      "loc": 147,
+      "deg_in": 0,
+      "deg_out": 0
+    },
+    {
+      "id": "cased/cli",
+      "label": "cli",
+      "dir": "cased",
+      "loc": 268,
+      "deg_in": 0,
+      "deg_out": 4
+    },
+    {
+      "id": "cased/analyze",
+      "label": "analyze",
+      "dir": "cased",
+      "loc": 671,
+      "deg_in": 4,
+      "deg_out": 0
+    },
+    {
+      "id": "cased/insight",
+      "label": "insight",
+      "dir": "cased",
+      "loc": 456,
+      "deg_in": 1,
+      "deg_out": 1
+    },
+    {
+      "id": "cased/score",
+      "label": "score",
+      "dir": "cased",
+      "loc": 409,
+      "deg_in": 0,
+      "deg_out": 0
+    },
+    {
+      "id": "cased/directors",
+      "label": "directors",
+      "dir": "cased",
+      "loc": 148,
+      "deg_in": 3,
+      "deg_out": 0
+    },
+    {
+      "id": "cased/compose",
+      "label": "compose",
+      "dir": "cased",
+      "loc": 499,
+      "deg_in": 2,
+      "deg_out": 2
+    },
+    {
+      "id": "cased/engine/render",
+      "label": "render",
+      "dir": "cased/engine",
+      "loc": 188,
+      "deg_in": 0,
+      "deg_out": 0
+    },
+    {
+      "id": "docs/assets/bed",
+      "label": "bed",
+      "dir": "docs/assets",
+      "loc": 194,
+      "deg_in": 0,
+      "deg_out": 0
+    },
+    {
+      "id": "docs/assets/site",
+      "label": "site",
+      "dir": "docs/assets",
+      "loc": 443,
+      "deg_in": 0,
+      "deg_out": 0
+    }
+  ],
+  "edges": [
+    [
+      0,
+      3
+    ],
+    [
+      0,
+      6
+    ],
+    [
+      0,
+      7
+    ],
+    [
+      2,
+      3
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      6
+    ],
+    [
+      2,
+      7
+    ],
+    [
+      4,
+      3
+    ],
+    [
+      7,
+      3
+    ],
+    [
+      7,
+      6
+    ]
+  ],
+  "hub": "cased/analyze",
+  "layers": [
+    "cased",
+    "docs",
+    "skills",
+    "scripts",
+    "(root)",
+    "examples"
+  ],
+  "tree": [
+    {
+      "path": "cased",
+      "loc": 4253,
+      "files": 10,
+      "bar": 1.0,
+      "is_dir": true
+    },
+    {
+      "path": "docs",
+      "loc": 1322,
+      "files": 4,
+      "bar": 0.311,
+      "is_dir": true
+    },
+    {
+      "path": "skills",
+      "loc": 426,
+      "files": 5,
+      "bar": 0.1,
+      "is_dir": true
+    },
+    {
+      "path": "scripts",
+      "loc": 305,
+      "files": 2,
+      "bar": 0.072,
+      "is_dir": true
+    },
+    {
+      "path": "(root)",
+      "loc": 203,
+      "files": 1,
+      "bar": 0.048,
+      "is_dir": false
+    },
+    {
+      "path": "examples",
+      "loc": 87,
+      "files": 3,
+      "bar": 0.02,
+      "is_dir": true
+    }
+  ],
+  "signature": {
+    "name": "build_graph",
+    "module": "cased/insight.py",
+    "lines": 61,
+    "doc": "Import graph over first-party modules. Third-party edges are dropped -- they describe the ecosystem, not this codebase's shape.",
+    "branches": 14,
+    "code": [
+      "def build_graph(root: Path, ins: Insight) -> dict:",
+      "    \"\"\"Import graph over first-party modules. Third-party edges are droppe",
+      "    they describe the ecosystem, not this codebase's shape.\"\"\"",
+      "    files: dict = {}",
+      "    for path, rel in walk_sources(root):",
+      "        ext = path.suffix.lower()",
+      "        if ext not in (\".py\", \".js\", \".mjs\", \".ts\", \".tsx\", \".jsx\"):",
+      "            continue",
+      "        if TEST_RE.search(rel):",
+      "            continue",
+      "        text = _read(path)",
+      "        if not text:",
+      "            continue",
+      "        loc = sum(1 for l in text.splitlines() if l.strip())"
+    ]
+  },
+  "techniques": [
+    {
+      "name": "GPU shaders",
+      "domain": "graphics",
+      "where": "scripts/sync_bed.py",
+      "hits": 6
+    },
+    {
+      "name": "Video encoding",
+      "domain": "media",
+      "where": "scripts/selftest.py",
+      "hits": 4
+    },
+    {
+      "name": "Deterministic generation",
+      "domain": "rigor",
+      "where": "scripts/selftest.py",
+      "hits": 4
+    },
+    {
+      "name": "Dynamics processing",
+      "domain": "audio",
+      "where": "cased/score.py",
+      "hits": 3
+    },
+    {
+      "name": "Headless browser automation",
+      "domain": "tooling",
+      "where": "cased/analyze.py",
+      "hits": 3
+    },
+    {
+      "name": "Karplus-Strong synthesis",
+      "domain": "audio",
+      "where": "cased/score.py",
+      "hits": 2
+    },
+    {
+      "name": "Procedural noise",
+      "domain": "graphics",
+      "where": "cased/compose.py",
+      "hits": 2
+    },
+    {
+      "name": "Parsing",
+      "domain": "languages",
+      "where": "cased/cli.py",
+      "hits": 2
+    }
+  ],
+  "pipeline": [
+    {
+      "name": "analyze",
+      "note": "story.json"
+    },
+    {
+      "name": "score",
+      "note": "score.wav"
+    },
+    {
+      "name": "compose",
+      "note": "spec.json"
+    },
+    {
+      "name": "render",
+      "note": "cased.mp4"
+    }
+  ],
+  "cadence": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    6
+  ],
+  "cadence_weeks": 26,
+  "peak_day": "6 commits on 2026-10-03",
+  "claims": [
+    "The numbers on screen are measured from your code, never invented",
+    "There is no GPU in most CI containers, so WebGL runs on SwiftShader",
+    "The synthesised score is a score, not a song",
+    "--plan-only stops after compose, so you can read the edit before paying for a render",
+    "It reads the repository, not a webpage",
+    "A cap is never an upscale, so vertical formats keep their native width"
+  ],
+  "contrasts": [
+    {
+      "left": "The synthesised score is a score",
+      "right": "a song"
+    },
+    {
+      "left": "It reads the repository",
+      "right": "a webpage"
+    }
+  ],
+  "density": {
+    "files": 11,
+    "total": 3581,
+    "median": 268,
+    "largest": 671,
+    "top20_share": 32.7
+  },
+  "verdict": "gpu shaders and video encoding; built around analyze"
+}

@@ -1,0 +1,654 @@
+{
+  "version": "2.0",
+  "project": "AegisEdge",
+  "director": "creative",
+  "director_label": "Creative (hand-directed)",
+  "mode": "slim",
+  "seed": 3103,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "duration": 62.0,
+  "theme": {
+    "bg": "#07060A",
+    "fg": "#FFFFFF",
+    "accent": "#FF6B1A",
+    "accent2": "#FFAE42",
+    "grain": 0.052,
+    "scanlines": false,
+    "vignette": 1.0,
+    "letterbox": true,
+    "bg_mode": "stars"
+  },
+  "shots": [
+    {
+      "type": "title",
+      "data": {
+        "kicker": "code cubicle 6.0 \u00b7 problem statement 03",
+        "text": "AegisEdge",
+        "sub": "An offline-first edge brain that survives, decides and proves.",
+        "caps": false,
+        "rule": true
+      },
+      "bg": "stars",
+      "cam": "push",
+      "in": "cut",
+      "energy": 0.45,
+      "fx": [
+        "motes"
+      ],
+      "start": 0.0,
+      "dur": 2.5532
+    },
+    {
+      "type": "bigquote",
+      "data": {
+        "text": "Disconnection is the normal state. Connectivity is the exception.",
+        "source": "the thesis"
+      },
+      "bg": "aurora",
+      "cam": "push",
+      "in": "rise",
+      "energy": 0.476,
+      "fx": [
+        "motes"
+      ],
+      "start": 2.5532,
+      "dur": 3.8298
+    },
+    {
+      "type": "title",
+      "data": {
+        "kicker": "pillar one",
+        "text": "It survives.",
+        "caps": true,
+        "rule": false
+      },
+      "bg": "stars",
+      "cam": "push",
+      "in": "fade",
+      "energy": 0.503,
+      "fx": [
+        "motes"
+      ],
+      "start": 6.383,
+      "dur": 2.5532
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "0",
+        "label": "writes lost after SIGKILL"
+      },
+      "bg": "rings",
+      "cam": "pull",
+      "in": "zoom",
+      "energy": 0.529,
+      "fx": [
+        "motes"
+      ],
+      "start": 8.9362,
+      "dur": 1.9149
+    },
+    {
+      "type": "compare",
+      "data": {
+        "left": "60 acknowledged, 60 recovered",
+        "right": "any write silently dropped",
+        "leftLabel": "crash durability",
+        "rightLabel": "never"
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "rise",
+      "energy": 0.555,
+      "fx": [
+        "motes"
+      ],
+      "start": 10.8511,
+      "dur": 3.1915
+    },
+    {
+      "type": "title",
+      "data": {
+        "kicker": "pillar two",
+        "text": "It decides.",
+        "caps": true,
+        "rule": false
+      },
+      "bg": "stars",
+      "cam": "push",
+      "in": "fade",
+      "energy": 0.582,
+      "fx": [
+        "motes"
+      ],
+      "start": 14.0426,
+      "dur": 2.5531
+    },
+    {
+      "type": "compare",
+      "data": {
+        "left": "7 of 7 deletions delivered",
+        "right": "0 of 7 on the same 16 KB",
+        "leftLabel": "value-first egress",
+        "rightLabel": "write-order"
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "cut",
+      "energy": 0.608,
+      "fx": [
+        "motes"
+      ],
+      "start": 16.5957,
+      "dur": 3.8298
+    },
+    {
+      "type": "bigquote",
+      "data": {
+        "text": "Deletions are obligations. The right to be forgotten survives a bad connection.",
+        "source": ""
+      },
+      "bg": "aurora",
+      "cam": "push",
+      "in": "rise",
+      "energy": 0.634,
+      "fx": [
+        "motes"
+      ],
+      "start": 20.4255,
+      "dur": 3.1915
+    },
+    {
+      "type": "title",
+      "data": {
+        "kicker": "pillar three",
+        "text": "It proves.",
+        "caps": true,
+        "rule": false
+      },
+      "bg": "stars",
+      "cam": "push",
+      "in": "fade",
+      "energy": 0.661,
+      "fx": [
+        "motes"
+      ],
+      "start": 23.617,
+      "dur": 2.5532
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "3000",
+        "label": "simulated executions, zero invariant failures"
+      },
+      "bg": "rings",
+      "cam": "pull",
+      "in": "zoom",
+      "energy": 0.687,
+      "fx": [
+        "motes"
+      ],
+      "start": 26.1702,
+      "dur": 1.9149
+    },
+    {
+      "type": "compare",
+      "data": {
+        "left": "0 failures in 1.73M operations",
+        "right": "435 of 500 for the unsigned control",
+        "leftLabel": "aegisedge",
+        "rightLabel": "same attacks"
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "rise",
+      "energy": 0.713,
+      "fx": [
+        "motes"
+      ],
+      "start": 28.0851,
+      "dur": 3.1915
+    },
+    {
+      "type": "bigquote",
+      "data": {
+        "text": "Most teams will tell you their system works. We hand you the crowbar.",
+        "source": "every claim ships with the button that would disprove it"
+      },
+      "bg": "aurora",
+      "cam": "push",
+      "in": "fade",
+      "energy": 0.739,
+      "fx": [
+        "motes"
+      ],
+      "start": 31.2766,
+      "dur": 3.8298
+    },
+    {
+      "type": "flow",
+      "data": {
+        "title": "the life of one memory",
+        "items": [
+          {
+            "name": "quota",
+            "note": "gate"
+          },
+          {
+            "name": "classify",
+            "note": "sensitivity"
+          },
+          {
+            "name": "policy",
+            "note": "redaction vault"
+          },
+          {
+            "name": "embed",
+            "note": "ONNX, on-device"
+          },
+          {
+            "name": "store",
+            "note": "Qdrant"
+          }
+        ]
+      },
+      "bg": "grid",
+      "cam": "none",
+      "in": "cut",
+      "energy": 0.766,
+      "fx": [
+        "motes"
+      ],
+      "start": 35.1064,
+      "dur": 3.8298
+    },
+    {
+      "type": "arch",
+      "data": {
+        "title": "four planes",
+        "nodes": [
+          {
+            "label": "storage",
+            "hub": true
+          },
+          {
+            "label": "control",
+            "hub": false
+          },
+          {
+            "label": "ingest",
+            "hub": false
+          },
+          {
+            "label": "query",
+            "hub": false
+          },
+          {
+            "label": "sync",
+            "hub": false
+          }
+        ],
+        "edges": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            3
+          ],
+          [
+            0,
+            4
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            1,
+            3
+          ],
+          [
+            1,
+            4
+          ]
+        ],
+        "note": "never lose an acknowledged write \u2014 everything leans on storage"
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "rise",
+      "energy": 0.792,
+      "fx": [
+        "motes"
+      ],
+      "start": 38.9362,
+      "dur": 3.8298
+    },
+    {
+      "type": "constellation",
+      "data": {
+        "title": "running on the device",
+        "items": [
+          {
+            "name": "Qdrant"
+          },
+          {
+            "name": "ONNX Runtime"
+          },
+          {
+            "name": "FastAPI"
+          },
+          {
+            "name": "wordllama"
+          },
+          {
+            "name": "NumPy"
+          },
+          {
+            "name": "asyncio"
+          },
+          {
+            "name": "NVIDIA Triton"
+          },
+          {
+            "name": "safetensors"
+          }
+        ]
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "fade",
+      "energy": 0.818,
+      "fx": [
+        "motes"
+      ],
+      "start": 42.766,
+      "dur": 3.8297
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "40191",
+        "label": "answers per 1% of a 50 Wh battery"
+      },
+      "bg": "rings",
+      "cam": "pull",
+      "in": "zoom",
+      "energy": 0.845,
+      "fx": [
+        "motes"
+      ],
+      "start": 46.5957,
+      "dur": 1.9149
+    },
+    {
+      "type": "bullets",
+      "data": {
+        "title": "why it is different",
+        "items": [
+          "Falsifiable by design \u2014 PROVE IT mode hands over the crowbar",
+          "It decides what a dying link should carry first",
+          "The fleet is a pure function of a seed",
+          "Zero trust between devices",
+          "Measurement over opinion"
+        ]
+      },
+      "bg": "aurora",
+      "cam": "none",
+      "in": "rise",
+      "energy": 0.871,
+      "fx": [
+        "motes"
+      ],
+      "start": 48.5106,
+      "dur": 3.8298
+    },
+    {
+      "type": "stat",
+      "data": {
+        "value": "1599",
+        "label": "queries per second on four cores, no GPU"
+      },
+      "bg": "rings",
+      "cam": "pull",
+      "in": "fade",
+      "energy": 0.897,
+      "fx": [
+        "motes"
+      ],
+      "start": 52.3404,
+      "dur": 1.9149
+    },
+    {
+      "type": "globe",
+      "data": {
+        "kicker": "offline first",
+        "text": "No network required",
+        "sub": "A node that remembers locally and answers in milliseconds."
+      },
+      "bg": "stars",
+      "cam": "none",
+      "in": "cut",
+      "energy": 0.924,
+      "fx": [
+        "motes"
+      ],
+      "start": 54.2553,
+      "dur": 3.1915
+    },
+    {
+      "type": "endcard",
+      "data": {
+        "name": "AegisEdge",
+        "sub": "github.com/akshatinnovate-png/AegisEdge",
+        "cta": "aegisedge.netlify.app"
+      },
+      "bg": "rings",
+      "cam": "pull",
+      "in": "rise",
+      "energy": 0.95,
+      "fx": [
+        "motes"
+      ],
+      "start": 57.4468,
+      "dur": 4.5532
+    }
+  ],
+  "beatmap": {
+    "bpm": 94,
+    "spb": 0.638298,
+    "bar": 2.553191,
+    "scale": "minor",
+    "root_midi": 48,
+    "duration": 65.8298,
+    "bars": [
+      0.0,
+      2.5532,
+      5.1064,
+      7.6596,
+      10.2128,
+      12.766,
+      15.3191,
+      17.8723,
+      20.4255,
+      22.9787,
+      25.5319,
+      28.0851,
+      30.6383,
+      33.1915,
+      35.7447,
+      38.2979,
+      40.8511,
+      43.4043,
+      45.9574,
+      48.5106,
+      51.0638,
+      53.617,
+      56.1702,
+      58.7234,
+      61.2766,
+      63.8298
+    ],
+    "kicks": [
+      0.0,
+      1.2766,
+      2.5532,
+      3.8298,
+      5.1064,
+      6.383,
+      7.6596,
+      8.9362,
+      10.2128,
+      11.4894,
+      12.1277,
+      12.766,
+      13.7234,
+      14.0426,
+      15.0,
+      15.3191,
+      16.5957,
+      17.234,
+      17.8723,
+      18.8298,
+      19.1489,
+      20.1064,
+      20.4255,
+      21.7021,
+      22.3404,
+      22.9787,
+      23.9362,
+      24.2553,
+      25.2128,
+      25.5319,
+      26.1702,
+      26.8085,
+      27.4468,
+      28.0851,
+      28.7234,
+      29.3617,
+      30.0,
+      30.6383,
+      31.2766,
+      31.9149,
+      32.5532,
+      33.1915,
+      33.8298,
+      34.4681,
+      34.9468,
+      35.4255,
+      35.7447,
+      36.383,
+      37.0213,
+      37.6596,
+      38.2979,
+      38.9362,
+      39.5745,
+      40.2128,
+      40.8511,
+      41.4894,
+      42.1277,
+      42.766,
+      43.4043,
+      44.0426,
+      44.6809,
+      45.1596,
+      45.6383,
+      45.9574,
+      46.5957,
+      47.234,
+      47.8723,
+      48.5106,
+      49.1489,
+      49.7872,
+      50.4255,
+      51.0638,
+      51.7021,
+      52.3404,
+      52.9787,
+      53.617,
+      54.8936,
+      56.1702,
+      57.4468,
+      58.7234,
+      60.0,
+      61.2766,
+      62.5532
+    ],
+    "accents": [
+      {
+        "time": 0.0,
+        "kind": "intro",
+        "weight": 0.5
+      },
+      {
+        "time": 10.2128,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 10.2128,
+        "kind": "build",
+        "weight": 0.7
+      },
+      {
+        "time": 25.5319,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 25.5319,
+        "kind": "peak",
+        "weight": 1.0
+      },
+      {
+        "time": 53.617,
+        "kind": "impact",
+        "weight": 1.0
+      },
+      {
+        "time": 53.617,
+        "kind": "resolve",
+        "weight": 0.6
+      }
+    ],
+    "sections": [
+      {
+        "name": "intro",
+        "start": 0.0,
+        "bars": 4
+      },
+      {
+        "name": "build",
+        "start": 10.2128,
+        "bars": 6
+      },
+      {
+        "name": "peak",
+        "start": 25.5319,
+        "bars": 11
+      },
+      {
+        "name": "resolve",
+        "start": 53.617,
+        "bars": 4
+      }
+    ],
+    "file": "score.wav"
+  },
+  "share": {
+    "x": "AegisEdge\n\nAn offline-first edge brain that survives, decides and proves.\n\n0 writes lost after SIGKILL \u00b7 0 invariant failures in 1.73M operations\n\nhttps://github.com/akshatinnovate-png/AegisEdge",
+    "linkedin": "I built AegisEdge, an edge memory and intelligence platform for Code Cubicle 6.0 (PS03).\n\nIt keeps answering through crash, partition, overload and hostile input \u2014 and every claim ships with the button that would disprove it.\n\nhttps://github.com/akshatinnovate-png/AegisEdge",
+    "hn": "Show HN: AegisEdge \u2013 an offline-first edge brain that survives, decides and proves",
+    "product_hunt": "An offline-first edge brain that survives, decides and proves",
+    "alt_text": "A launch film for AegisEdge, an offline-first edge memory platform. Three pillars \u2014 it survives, it decides, it proves \u2014 each followed by the measurement backing it, then the architecture, the stack and the results."
+  }
+}

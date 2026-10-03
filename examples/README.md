@@ -1,5 +1,11 @@
 # Examples
 
+| Example | How it was made |
+|---|---|
+| [`cased2.0/`](cased2.0/) | 24s trailer — `python3 -m cased .` |
+| [`creative/`](creative/) | 60s documentary — `python3 -m cased . --creative` |
+| [`aegisedge/`](aegisedge/) | 62s, hand-directed from a pitch document (`cased-slim`) |
+
 ## `cased2.0/` — the film cased2.0 made about itself
 
 Rendered by running the tool on this repository, with nothing hand-edited:

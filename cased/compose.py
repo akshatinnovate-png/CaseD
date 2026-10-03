@@ -21,6 +21,9 @@ from pathlib import Path
 from .analyze import plural
 from .directors import pick
 
+#: Rows the `callout` shot draws. Must match the slice in stage.html.
+CALLOUT_LINES = 13
+
 MIN_SHOT = 1.15          # below this a shot reads as a flicker
 MAX_SHOT = 4.60          # above this the eye wanders
 
@@ -297,6 +300,193 @@ def build_plan(story: dict, dname: str, d: dict, rng: random.Random,
     return plan
 
 
+#: Opening delimiters of a docstring, built rather than written literally so
+#: this file stays easy to patch.
+_DOCQ = ('"' * 3, "'" * 3)
+
+
+def _focus_line(code: list) -> int:
+    """Which line of the signature function the callout should point at.
+
+    Not the `def`, not the docstring, not a bare `return x` -- the line doing
+    the actual work, which is usually the densest expression in the body.
+    """
+    best, best_i = -1.0, 0
+    for i, raw in enumerate(code):
+        line = raw.strip()
+        if not line or i == 0:
+            continue
+        if line.startswith("#") or line.startswith("@") or line[:3] in _DOCQ:
+            continue
+        if line in ("else:", "try:", "pass"):
+            continue
+        score = len(line) * 0.35
+        score += sum(line.count(op) for op in "=+-*/<>[](){}") * 2.2
+        score += 9 if re.search(r"\b(for|while|if|return|yield)\b", line) else 0
+        score -= 14 if line.startswith("def ") or line.startswith("class ") else 0
+        if score > best:
+            best, best_i = score, i
+    return best_i
+
+
+def build_creative_plan(story: dict, ins: dict, dname: str, d: dict,
+                        rng: random.Random, duration: float) -> list:
+    """The long-form arc.
+
+    A minute of title cards and counters is a minute of nothing: by about
+    twenty seconds the viewer has learned the format and starts reading the
+    clock instead of the work. So this plan spends its middle on *structure*
+    -- what the repo is made of, how it fits together, which line is the
+    clever one -- and only returns to numbers once it has earned them.
+
+    Every beat is conditional on evidence. A repo with no import graph gets
+    no architecture shot rather than an empty one.
+    """
+    name = story["name"]
+    plan = []
+
+    def add(type_, data, weight, hard=False):
+        plan.append({"type": type_, "data": data, "weight": weight, "hard": hard})
+
+    # 1 -- cold open
+    add("title", {
+        "kicker": story.get("repo") or "introducing",
+        "text": _hook_line(story, rng),
+        "caps": False, "rule": True,
+    }, 1.0)
+
+    # 2 -- the thesis, in the author's own words
+    claims = ins.get("claims") or []
+    if claims:
+        add("bigquote", {"text": claims[0], "source": "from the README"}, 1.25, hard=True)
+
+    # 3 -- one number, to ground it
+    hl = story.get("highlights") or []
+    if hl:
+        add("stat", {"value": hl[0]["value"], "label": hl[0]["label"]}, 0.7, hard=True)
+
+    # 4 -- what is actually in here
+    if len(ins.get("tree") or []) >= 3:
+        add("tree", {"title": "what is in here", "items": ins["tree"][:8]}, 1.4)
+
+    # 5 -- how it is put together
+    mods = ins.get("modules") or []
+    if len(mods) >= 4:
+        hub = ins.get("hub")
+        # A node with no edges tells the viewer nothing and crowds the ring.
+        # Keep the connected graph; only fall back to isolated modules if the
+        # project genuinely has too few connections to fill a shot.
+        linked = [m for m in mods if m["deg_in"] or m["deg_out"]]
+        pool = linked if len(linked) >= 4 else mods
+        nodes = sorted(pool, key=lambda m: -(m["deg_in"] * 3 + m["deg_out"] + m["loc"] / 400))[:12]
+        idx = {m["id"]: i for i, m in enumerate(nodes)}
+        edges = []
+        for a, b in ins.get("edges", []):
+            ia, ib = mods[a]["id"], mods[b]["id"]
+            if ia in idx and ib in idx:
+                edges.append([idx[ia], idx[ib]])
+        note = f"{len(mods)} modules, {len(ins.get('edges', []))} imports between them"
+        if hub:
+            note += f" \u2014 everything leans on {hub.rsplit('/', 1)[-1]}"
+        add("arch", {
+            "title": "architecture",
+            "nodes": [{"label": m["label"], "hub": m["id"] == hub} for m in nodes],
+            "edges": edges[:22],
+            "note": note,
+        }, 1.5)
+
+    # 6 -- the process
+    if len(ins.get("pipeline") or []) >= 3:
+        add("flow", {"title": "how it runs", "items": ins["pipeline"][:5]}, 1.35, hard=True)
+
+    # 7 -- THE CENTREPIECE: the function the project is actually about
+    sig = ins.get("signature") or {}
+    if sig.get("code"):
+        # The shot renders at most CALLOUT_LINES rows, so the focus index has
+        # to be chosen against what will actually be on screen -- picking it
+        # from the full function silently points at a line nobody sees.
+        shown = sig["code"][:CALLOUT_LINES]
+        add("callout", {
+            "path": f"{sig['module']} \u2014 {sig['name']}()",
+            "code": shown,
+            "highlight": _focus_line(shown),
+            "label": "the idea",
+            "note": sig.get("doc") or f"{sig['lines']} lines, {sig.get('branches', 0)} branches",
+        }, 1.75)
+
+    # 8 -- a second look at real source, elsewhere in the tree
+    moments = story.get("code_moments") or []
+    if moments:
+        m = moments[0]
+        add("code", {"path": m["path"], "code": m["code"],
+                     "caption": m.get("caption", ""), "dur": 3.2}, 1.3)
+
+    # 9 -- what it knows how to do
+    techs = ins.get("techniques") or []
+    if len(techs) >= 3:
+        add("constellation", {"title": "techniques in the source",
+                              "items": [{"name": t["name"]} for t in techs[:8]]}, 1.3, hard=True)
+
+    # 10 -- the second number
+    if len(hl) > 1:
+        add("stat", {"value": hl[1]["value"], "label": hl[1]["label"]}, 0.7)
+
+    # 11 -- the shape of the work
+    cad = ins.get("cadence") or []
+    # A heatmap of one busy afternoon is an empty grid with a dot in it. Only
+    # earn the shot when there is a spread of activity to actually show.
+    active_days = sum(1 for v in cad if v)
+    if len(cad) >= 60 and active_days >= 12:
+        add("heatmap", {"title": "the last six months",
+                        "days": cad, "note": ins.get("peak_day", "")}, 1.25)
+
+    # 12 -- milestones
+    tl = story.get("timeline") or []
+    if len(tl) >= 3:
+        add("timeline", {"title": "how it got here", "items": tl[-4:]}, 1.2)
+
+    # 13 -- the stack
+    langs = story.get("languages") or []
+    if len(langs) >= 2:
+        add("langs", {"title": "built with",
+                      "items": [{"name": l["name"], "share": l["share"], "color": l["color"]}
+                                for l in langs[:5]]}, 1.0, hard=True)
+
+    # 14 -- what it does for you
+    feats = story.get("features") or []
+    if len(feats) >= 2:
+        add("bullets", {"title": "what it does", "items": feats[:5]}, 1.35)
+
+    # 15 -- this, not that
+    contrasts = ins.get("contrasts") or []
+    if contrasts:
+        add("compare", {
+            "left": contrasts[0]["left"], "right": contrasts[0]["right"],
+            "leftLabel": name, "rightLabel": "not",
+        }, 1.2, hard=True)
+
+    # 16 -- a closing claim
+    if len(claims) > 1:
+        add("bigquote", {"text": claims[1], "source": ""}, 1.15)
+
+    # 17 -- it ships
+    add("globe", {
+        "kicker": "available now",
+        "text": "Ship it anywhere",
+        "sub": (f"Open source \u00b7 {story['license']}" if story.get("license")
+                else "Clone it and run it."),
+    }, 1.1, hard=True)
+
+    # 18 -- the card people screenshot
+    add("endcard", {
+        "name": name,
+        "sub": story.get("url") or story.get("repo") or "",
+        "cta": "made with cased2.0",
+    }, 1.0, hard=True)
+
+    return plan
+
+
 def decorate(plan: list, d: dict, rng: random.Random) -> None:
     """Attach the director's look to each shot: bed, camera, entrance, fx."""
     beds, cams, ins = d["beds"], d["cams"], d["ins"]
@@ -320,6 +510,23 @@ def decorate(plan: list, d: dict, rng: random.Random) -> None:
         if s["type"] == "retro":
             s["bg"] = "plasma"
             s["cam"] = "none"
+        # Structural shots carry their own geometry, so the bed stays quiet and
+        # the camera stays still -- a drifting frame fights a diagram.
+        if s["type"] in ("arch", "tree", "flow", "callout", "heatmap",
+                         "constellation", "compare"):
+            s["cam"] = "none"
+            s["energy"] = round(min(s["energy"], 0.5), 3)
+        if s["type"] in ("arch", "constellation"):
+            s["bg"] = "stars"
+        if s["type"] in ("tree", "flow", "compare"):
+            s["bg"] = "aurora"
+        if s["type"] == "heatmap":
+            # The grid bed is a perspective tunnel; behind a data grid it
+            # reads as interference rather than atmosphere.
+            s["bg"] = "aurora"
+            s["energy"] = 0.25
+        if s["type"] == "bigquote":
+            s["cam"] = "push"
 
 
 # ---------------------------------------------------------------------------
@@ -329,11 +536,16 @@ def decorate(plan: list, d: dict, rng: random.Random) -> None:
 
 def compose(story: dict, beatmap: dict, duration: float = 24.0,
             director: str | None = None, width: int = 1920,
-            height: int = 1080, seed: int = 0) -> dict:
+            height: int = 1080, seed: int = 0,
+            insight: dict | None = None) -> dict:
     dname, d = pick(director, story.get("kind", "project"))
     rng = random.Random(seed or story.get("seed") or 1)
 
-    plan = build_plan(story, dname, d, rng, duration)
+    # Passing an insight report switches the film to the long-form arc.
+    if insight:
+        plan = build_creative_plan(story, insight, dname, d, rng, duration)
+    else:
+        plan = build_plan(story, dname, d, rng, duration)
     decorate(plan, d, rng)
     shots = _lay_out(plan, duration, beatmap)
 
@@ -348,6 +560,7 @@ def compose(story: dict, beatmap: dict, duration: float = 24.0,
         "project": story["name"],
         "director": dname,
         "director_label": d["label"],
+        "mode": "creative" if insight else "standard",
         "seed": seed or story.get("seed") or 1,
         "fps": 30,
         "width": width,

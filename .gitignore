@@ -8,3 +8,9 @@ node_modules/
 # Example score is 4.9 MB and fully regenerable from the seed in spec.json:
 #   python3 -m cased.score 24 cinematic examples/cased2.0/score.wav
 examples/**/score.wav
+examples/aegisedge/score.wav
+
+# A 60s film is not a GIF use case: the loop is 7 MB and nobody embeds it.
+# The 24s trailer keeps its GIF, which is what READMEs actually want.
+examples/creative/cased.gif
+examples/aegisedge/aegisedge.gif

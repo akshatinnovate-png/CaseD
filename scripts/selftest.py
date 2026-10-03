@@ -29,6 +29,7 @@ from cased.analyze import analyze                      # noqa: E402
 from cased.compose import compose, MIN_SHOT            # noqa: E402
 from cased.directors import DIRECTORS, pick            # noqa: E402
 from cased import score as score_mod                   # noqa: E402
+from cased.insight import inspect                      # noqa: E402
 
 PASS, FAIL = "\033[92m  ok \033[0m", "\033[91mFAIL \033[0m"
 failures: list = []
@@ -128,6 +129,57 @@ def main(argv) -> int:
               sh[0]["type"] == "title" and sh[-1]["type"] == "endcard")
     check("compose is deterministic",
           compose(story, bm, 24.0, "cinematic", 1920, 1080, 4242) == spec)
+
+    # ---- creative mode ----------------------------------------------------
+    print("\ncreative")
+    ins_obj = inspect(ROOT, story)
+    ins = json.loads(ins_obj.to_json())
+    check("builds an import graph", len(ins["modules"]) >= 3)
+    check("finds the hub", bool(ins["hub"]), ins["hub"])
+    check("finds a signature function", bool(ins["signature"].get("code")),
+          ins["signature"].get("name", "-"))
+
+    # Every technique must be corroborated in real source. A detector that
+    # fires on its own pattern table turns the film into confident fiction.
+    bad = [t["name"] for t in ins["techniques"]
+           if t["hits"] < 2 or t["where"].lower().endswith(".md")]
+    check("techniques are evidence-backed", not bad, str(bad))
+    check("techniques exclude the detector itself",
+          not any(t["where"].endswith("insight.py") for t in ins["techniques"]))
+
+    # Claims go on screen alone, so none may end on a dangling word.
+    dangle = [c for c in ins["claims"]
+              if c.split()[-1].lower().strip(",;:") in
+              {"the", "a", "an", "and", "or", "of", "to", "behind", "with", "for"}]
+    check("claims do not dangle", not dangle, str(dangle[:2]))
+
+    cspec = compose(story, bm, 60.0, "creative", 1920, 1080, 4242, insight=ins)
+    cs = cspec["shots"]
+    check("creative mode is long-form", len(cs) >= 12, f"{len(cs)} shots")
+    check("creative uses structural shots",
+          len({s["type"] for s in cs} & {"arch", "tree", "flow", "callout",
+                                         "constellation", "compare", "bigquote"}) >= 4)
+    check("no two adjacent shots repeat a type",
+          all(cs[i]["type"] != cs[i + 1]["type"] for i in range(len(cs) - 1)))
+    check("creative tiles 60s",
+          abs(cs[-1]["start"] + cs[-1]["dur"] - 60.0) < 0.02 and
+          all(abs(cs[i + 1]["start"] - (cs[i]["start"] + cs[i]["dur"])) < 0.002
+              for i in range(len(cs) - 1)))
+    # The callout renders a fixed number of rows; a focus index past that
+    # points at a line the viewer never sees.
+    for sh in cs:
+        if sh["type"] == "callout":
+            d2 = sh["data"]
+            check("callout focus is on a rendered line",
+                  0 <= d2["highlight"] < len(d2["code"]),
+                  f"{d2['highlight']} of {len(d2['code'])}")
+    for sh in cs:
+        if sh["type"] == "arch":
+            deg = set()
+            for a, b in sh["data"]["edges"]:
+                deg.add(a); deg.add(b)
+            check("arch graph has no orphan nodes",
+                  all(i in deg for i in range(len(sh["data"]["nodes"]))))
 
     # ---- generated assets stay in sync ------------------------------------
     print("\nrepo")

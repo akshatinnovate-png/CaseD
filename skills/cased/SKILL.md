@@ -45,6 +45,44 @@ You are looking for three things:
 If the analyzer's `tagline` is weak or truncated, write a better one and pass
 it with `--tagline`. This is the single highest-leverage thing you can do.
 
+## Step 1b — Decide: trailer or documentary?
+
+This is the most important call you make.
+
+**`--creative` (~60s)** when the project has *substance to show*: a real module
+structure, a function worth reading, techniques a developer would respect. It
+runs a second deep pass and builds the film out of the architecture, the
+signature function, the techniques it can prove are in the source, and the
+author's own strongest claims.
+
+```bash
+python3 -m cased . --creative --plan-only --out cased-output
+```
+
+Read `cased-output/insight.json`. If it found a hub, a signature function and
+three or more techniques, creative mode will produce something genuinely
+specific. Say so to the user and use it.
+
+**Stay with the default 24s** when the repo is small, young, or mostly glue.
+Creative mode on a thin repo drops most of its structural beats anyway and you
+get a stretched trailer instead of a documentary. Better a tight 24 seconds.
+
+Rule of thumb: fewer than ~500 lines or fewer than 4 modules → default mode.
+
+### What creative mode gives you to talk about
+
+`insight.json` is the most useful thing the tool produces, whichever mode you
+pick. Read it before you write a word of copy:
+
+- `hub` — the module everything leans on. Usually the real answer to "what is
+  this project?"
+- `signature` — the function the project is about, with its docstring.
+- `techniques` — each with `hits` and `where`. **These are evidence-backed**;
+  a technique needs two sightings and at least one in real source. You can
+  quote them in the user's launch post without checking.
+- `claims` — the author's own sentences, ranked.
+- `verdict` — a one-line thesis.
+
 ## Step 2 — Cast the director
 
 | Director | Use it when |
@@ -55,6 +93,7 @@ it with `--tagline`. This is the single highest-leverage thing you can do.
 | `hype` | It is going on social and needs to win the first 0.8 seconds. |
 | `orbit` | Scale is the story — distributed systems, APIs, anything that ships worldwide. |
 | `warm` | It is a kindness. Libraries, docs tools, accessibility work, anything gentle. |
+| `creative` | Chosen automatically by `--creative`. Long-form; built for structure. |
 
 Leave `--director` off and the pipeline picks from the project kind. Override
 it when you know better — you usually do, because you have read the README and
@@ -71,8 +110,9 @@ python3 -m cased . \
   --gif
 ```
 
-Rendering is CPU-bound and takes **3–6 minutes** for 24 seconds at 1080p. Say
-so before you start, so the wait is expected rather than alarming.
+Rendering is CPU-bound: roughly **3–6 minutes** for 24 seconds at 1080p, and
+**8–12 minutes** for a 60-second `--creative` film. Say so before you start, so
+the wait is expected rather than alarming.
 
 While it renders, draft the user's post using `cased-output/SHARE.md` as the
 starting point — but rewrite it in their voice if you have seen how they write.
@@ -80,6 +120,7 @@ starting point — but rewrite it in their voice if you have seen how they write
 ### Options worth knowing
 
 ```
+--creative             long-form (~60s): architecture, history, the clever bit
 --format 9:16          vertical, for Reels/Shorts/TikTok
 --format all           every aspect ratio in one run
 --duration 15          tighter; the composer drops the weaker beats
