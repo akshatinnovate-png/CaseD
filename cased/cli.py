@@ -27,6 +27,7 @@ from .analyze import analyze, plural
 from .insight import inspect
 from .compose import compose
 from .directors import DIRECTORS, pick
+from . import themes as themes_mod
 from . import score as score_mod
 
 HERE = Path(__file__).resolve().parent
@@ -87,7 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("path", nargs="?", default=".", help="project directory (default: .)")
     p.add_argument("--director", "-d", choices=list(DIRECTORS),
-                   help="visual style (default: chosen from the project)")
+                   help="pacing and shot grammar (default: chosen from the project)")
+    p.add_argument("--theme", choices=themes_mod.names(), metavar="NAME",
+                   help="palette and surface treatment; any of the "
+                        f"{len(themes_mod.names())} themes works with any director "
+                        "(see --list-themes)")
     p.add_argument("--duration", "-t", type=float, default=0.0,
                    help="runtime in seconds (default: 24, or 60 with --creative)")
     p.add_argument("--creative", "-c", action="store_true",
@@ -105,6 +110,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--plan-only", action="store_true",
                    help="write story.json + spec.json and stop (no render)")
     p.add_argument("--list-directors", action="store_true")
+    p.add_argument("--list-themes", action="store_true",
+                   help="every theme, grouped by family")
+    p.add_argument("--list-graphics", action="store_true",
+                   help="every graphic primitive the engine can draw")
     return p
 
 
@@ -207,13 +216,80 @@ def run_render(spec_path: Path, out_video: Path, audio: Path | None,
         die("render failed (see output above)", r.returncode)
 
 
+def _list_graphics() -> int:
+    """Count the engine's primitives by reading stage.html's own registries.
+
+    Hand-maintained counts drift the moment someone adds a shot. These are
+    parsed out of the source of truth instead.
+    """
+    import re
+    stage = (HERE / "engine" / "stage.html").read_text(encoding="utf-8")
+
+    def registry(pattern):
+        return sorted(set(re.findall(pattern, stage, re.M)))
+
+    shots = registry(r"^BUILD\.([a-zA-Z_][\w]*) =")
+    beds = registry(r"^([a-z_][a-z0-9_]*):\s*`")
+    def names_in(const):
+        m = re.search(const + r"\s*=\s*\[(.*?)\]", stage, re.S)
+        return sorted(set(re.findall(r"'([^']+)'", m.group(1)))) if m else []
+    ins = names_in("const IN_NAMES")
+    cams = names_in("const CAM_NAMES")
+    fx = registry(r"^([a-z][a-zA-Z0-9_]*)\(c, t, p, th, W, H\)")
+
+    groups = [
+        ("themes", themes_mod.names()),
+        ("shot types", shots),
+        ("background beds", beds),
+        ("overlay layers", fx),
+        ("transitions", ins),
+        ("camera moves", cams),
+        ("directors", list(DIRECTORS)),
+    ]
+    total = 0
+    for label, items in groups:
+        total += len(items)
+        print(f"\n{C['pink']}{C['b']}{label}{C['r']}  {C['dim']}{len(items)}{C['r']}")
+        line = "  "
+        for it in items:
+            if len(line) + len(it) > 76:
+                print(line); line = "  "
+            line += it + "  "
+        if line.strip():
+            print(line)
+    print(f"\n{C['b']}{total} distinct graphics primitives{C['r']}")
+    print(f"{C['dim']}every theme composes with every director, so the "
+          f"look-and-pacing space alone is {len(themes_mod.names())} x "
+          f"{len(DIRECTORS)} = {len(themes_mod.names()) * len(DIRECTORS)}{C['r']}\n")
+    return 0
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
     if args.list_directors:
         for k, v in DIRECTORS.items():
-            print(f"{C['b']}{k}{C['r']}\n  {v['blurb']}\n")
+            print(f"{C['b']}{k}{C['r']}  {C['dim']}theme: {v['theme']}{C['r']}\n  {v['blurb']}\n")
         return 0
+
+    if args.list_themes:
+        fams = themes_mod.families()
+        for fam, names in fams.items():
+            print(f"\n{C['pink']}{C['b']}{fam}{C['r']}")
+            for nm in names:
+                t = themes_mod.get(nm)
+                flags = []
+                if t["scanlines"]:
+                    flags.append("scanlines")
+                if t["letterbox"]:
+                    flags.append("letterbox")
+                print(f"  {C['b']}{nm:<18}{C['r']} {t['bg']} {t['accent']} {t['accent2']}"
+                      f"  {C['dim']}bed:{t['bed']}  {' '.join(flags)}{C['r']}")
+        print(f"\n{len(themes_mod.names())} themes\n")
+        return 0
+
+    if args.list_graphics:
+        return _list_graphics()
 
     root = Path(args.path).resolve()
     if not root.is_dir():
@@ -263,6 +339,7 @@ def main(argv=None) -> int:
     dname, d = pick(args.director or ("creative" if args.creative else None),
                     story.get("kind", "project"))
     say(f"director: {C['b']}{d['label']}{C['r']} — {d['blurb']}", "✓")
+    say(f"theme: {C['b']}{args.theme or d['theme']}{C['r']}", "✓")
 
     # --- 2. score ---------------------------------------------------------
     head("2/4  writing the score")
@@ -285,7 +362,8 @@ def main(argv=None) -> int:
     specs = []
     for key, (w, h, stem) in formats:
         spec = compose(story, beatmap, duration, dname, w, h,
-                       args.seed or story["seed"], insight=insight)
+                       args.seed or story["seed"], insight=insight,
+                       theme=args.theme)
         sp = outdir / (f"spec-{stem}.json" if len(formats) > 1 else "spec.json")
         sp.write_text(json.dumps(spec, indent=2), encoding="utf-8")
         specs.append((key, w, h, stem, sp, spec))

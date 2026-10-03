@@ -83,6 +83,23 @@ pick. Read it before you write a word of copy:
 - `claims` — the author's own sentences, ranked.
 - `verdict` — a one-line thesis.
 
+## Step 1c — Pick a theme
+
+The director sets pacing; the **theme** sets the look, and they are independent.
+
+```bash
+python3 -m cased . --list-themes
+```
+
+If the user names colours ("black and orange", "make it green"), go to the list
+and pick the match — `ember`, `furnace` and `orbit` are the black-and-orange
+family — rather than inventing a palette. If the project has a brand colour,
+pick the theme whose accent is nearest and *say that it is nearest*, not exact.
+
+With no `--theme`, the director's own default is used, which is always a
+sensible choice. See `references/themes.md` for the families and how to match
+one to a project.
+
 ## Step 2 — Cast the director
 
 | Director | Use it when |
@@ -190,3 +207,5 @@ Do this instead:
 - `references/directors.md` — what each director does, shot by shot.
 - `references/shots.md` — every shot type and the data it takes.
 - `references/copy.md` — how to write the headline and the share post.
+- `references/themes.md` — the 54 themes, the graphics library, and how to
+  choose from both.

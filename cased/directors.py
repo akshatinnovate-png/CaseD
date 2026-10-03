@@ -2,10 +2,14 @@
 cased2.0 / directors
 ====================
 
-A director is a complete point of view: palette, background bed, pacing,
-transition vocabulary, and the musical mood it wants underneath.
+A director is pacing, shot grammar and transition vocabulary. It names a
+default theme, but the look is a separate axis -- see `themes.py`. Any of the
+54 themes composes with any of the directors:
 
-Swapping the director swaps the whole film. The story stays the same.
+    python3 -m cased . --director terminal --theme ember
+
+Swapping the director changes the edit; swapping the theme changes the look.
+The story underneath stays the same.
 """
 
 from __future__ import annotations
@@ -16,12 +20,7 @@ DIRECTORS = {
         "label": "Cinematic",
         "blurb": "Deep blacks, slow pushes, letterbox. Takes the work seriously.",
         "mood": "cinematic",
-        "theme": {
-            "bg": "#06070C", "fg": "#FFFFFF",
-            "accent": "#7C5CFF", "accent2": "#39D0FF",
-            "grain": 0.055, "scanlines": False, "vignette": 1.0,
-            "letterbox": True, "bg_mode": "aurora",
-        },
+        "theme": "midnight",
         "beds": ["aurora", "stars", "aurora", "rings"],
         "cams": ["push", "pull", "push", "left"],
         "ins": ["fade", "rise", "fade", "zoom", "fade"],
@@ -34,12 +33,7 @@ DIRECTORS = {
         "label": "Brutalist",
         "blurb": "Hot pink, hard cuts, dialog boxes, type the size of a bus.",
         "mood": "brutalist",
-        "theme": {
-            "bg": "#F2719E", "fg": "#141414",
-            "accent": "#141414", "accent2": "#FFFFFF",
-            "grain": 0.040, "scanlines": False, "vignette": 0.25,
-            "letterbox": False, "bg_mode": "plasma",
-        },
+        "theme": "hotpink",
         "beds": ["plasma", "plasma", "plasma"],
         "cams": ["none", "none", "left", "none"],
         "ins": ["cut", "cut", "push", "cut", "glitch"],
@@ -52,12 +46,7 @@ DIRECTORS = {
         "label": "Terminal",
         "blurb": "Phosphor green, scanlines, code first. For things with a prompt.",
         "mood": "retro",
-        "theme": {
-            "bg": "#04080A", "fg": "#D6FFE4",
-            "accent": "#38F58C", "accent2": "#FFC24D",
-            "grain": 0.085, "scanlines": True, "vignette": 1.0,
-            "letterbox": False, "bg_mode": "grid",
-        },
+        "theme": "phosphor",
         "beds": ["grid", "grid", "rings"],
         "cams": ["push", "none", "up"],
         "ins": ["cut", "rise", "glitch", "cut"],
@@ -70,12 +59,7 @@ DIRECTORS = {
         "label": "Hype",
         "blurb": "Flash cuts, glitch, neon. Built to stop a thumb mid-scroll.",
         "mood": "hype",
-        "theme": {
-            "bg": "#08030F", "fg": "#FFFFFF",
-            "accent": "#FF2D71", "accent2": "#00F0FF",
-            "grain": 0.065, "scanlines": False, "vignette": 0.9,
-            "letterbox": False, "bg_mode": "rings",
-        },
+        "theme": "neon",
         "beds": ["rings", "plasma", "grid", "rings"],
         "cams": ["push", "right", "pull", "push"],
         "ins": ["flash", "glitch", "zoom", "flash", "cut"],
@@ -88,12 +72,7 @@ DIRECTORS = {
         "label": "Orbit",
         "blurb": "Starfield, a turning globe, long arcs. For things that ship wide.",
         "mood": "triumphant",
-        "theme": {
-            "bg": "#01030A", "fg": "#FFFFFF",
-            "accent": "#FF7A1A", "accent2": "#2E7BFF",
-            "grain": 0.050, "scanlines": False, "vignette": 1.0,
-            "letterbox": True, "bg_mode": "stars",
-        },
+        "theme": "orbit",
         "beds": ["stars", "stars", "aurora", "stars"],
         "cams": ["pull", "push", "left", "push"],
         "ins": ["fade", "rise", "fade", "zoom"],
@@ -107,12 +86,7 @@ DIRECTORS = {
         "label": "Creative",
         "blurb": "Long-form. Shows the architecture, the history and the clever bit.",
         "mood": "cinematic",
-        "theme": {
-            "bg": "#05060B", "fg": "#FFFFFF",
-            "accent": "#5B8CFF", "accent2": "#FF5CA8",
-            "grain": 0.048, "scanlines": False, "vignette": 1.0,
-            "letterbox": True, "bg_mode": "aurora",
-        },
+        "theme": "signal",
         "beds": ["aurora", "stars", "grid", "aurora", "rings", "stars"],
         "cams": ["push", "none", "pull", "none", "left", "none"],
         "ins": ["fade", "rise", "fade", "zoom", "rise", "fade"],
@@ -125,12 +99,7 @@ DIRECTORS = {
         "label": "Warm",
         "blurb": "Soft light, unhurried, generous margins. Quietly confident.",
         "mood": "warm",
-        "theme": {
-            "bg": "#0C0A09", "fg": "#FFF7ED",
-            "accent": "#FF9E5E", "accent2": "#8FD4C1",
-            "grain": 0.045, "scanlines": False, "vignette": 0.85,
-            "letterbox": True, "bg_mode": "aurora",
-        },
+        "theme": "hearth",
         "beds": ["aurora", "aurora", "rings"],
         "cams": ["push", "pull", "up"],
         "ins": ["fade", "rise", "fade"],

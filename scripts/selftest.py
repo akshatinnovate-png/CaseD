@@ -192,6 +192,31 @@ def main(argv) -> int:
               ".opencode/skills/cased/SKILL.md"):
         check(f"{p} resolves", (ROOT / p).is_file())
 
+    # ---- the graphics library ---------------------------------------------
+    print("\ngraphics")
+    import re as _re
+    stage = (ROOT / "cased" / "engine" / "stage.html").read_text(encoding="utf-8")
+    shots = set(_re.findall(r"^BUILD\.([a-zA-Z_][\w]*) =", stage, _re.M))
+    beds = set(_re.findall(r"^([a-z_][a-z0-9_]*):\s*`", stage, _re.M))
+    fxl = set(_re.findall(r"^([a-z][a-zA-Z0-9_]*)\(c, t, p, th, W, H\)", stage, _re.M))
+
+    from cased import themes as themes_mod
+    check("50+ themes", len(themes_mod.names()) >= 50, str(len(themes_mod.names())))
+    check("every theme is well formed",
+          all(_re.fullmatch(r"#[0-9A-Fa-f]{6}", t[k])
+              for t in themes_mod.THEMES.values()
+              for k in ("bg", "fg", "accent", "accent2")))
+    # A theme naming a bed the engine cannot draw silently falls back to
+    # aurora, so the chosen look just quietly does not happen.
+    missing = sorted({t["bed"] for t in themes_mod.THEMES.values()} - beds)
+    check("every theme's bed exists in the engine", not missing, str(missing))
+    for dname, d in DIRECTORS.items():
+        check(f"director {dname} names a real theme",
+              d["theme"] in themes_mod.THEMES, str(d.get("theme")))
+    check("60+ shot types", len(shots) >= 60, str(len(shots)))
+    check("80+ background beds", len(beds) >= 80, str(len(beds)))
+    check("40+ overlay layers", len(fxl) >= 40, str(len(fxl)))
+
     # ---- render -----------------------------------------------------------
     if not fast:
         print("\nrender")
@@ -219,6 +244,19 @@ def main(argv) -> int:
                 dur = float(info.get("format", {}).get("duration", 0))
                 check("has video and audio", {"h264", "aac"} <= codecs, str(codecs))
                 check("duration matches the spec", abs(dur - 2.5) < 0.35, f"{dur:.2f}s")
+
+        # The gallery renders every primitive the engine knows. A shot that
+        # throws, or silently paints an empty frame, looks exactly like one
+        # that was never scheduled -- this is what catches that.
+        print("\ngallery")
+        g = subprocess.run(["node", str(ROOT / "scripts" / "gallery.mjs")],
+                           capture_output=True, text=True, timeout=2400)
+        tail = (g.stderr or "").strip().splitlines()
+        check("every graphic primitive renders", g.returncode == 0,
+              " / ".join(tail[-4:]) if tail else "")
+        for line in tail[-7:]:
+            if line.strip():
+                print(f"       {line.strip()}")
 
     shutil.rmtree(tmp, ignore_errors=True)
     print()

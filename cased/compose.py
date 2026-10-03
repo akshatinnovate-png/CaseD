@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .analyze import plural
 from .directors import pick
+from . import themes as themes_mod
 
 #: Rows the `callout` shot draws. Must match the slice in stage.html.
 CALLOUT_LINES = 13
@@ -487,7 +488,8 @@ def build_creative_plan(story: dict, ins: dict, dname: str, d: dict,
     return plan
 
 
-def decorate(plan: list, d: dict, rng: random.Random) -> None:
+def decorate(plan: list, d: dict, rng: random.Random,
+             theme_spec: dict) -> None:
     """Attach the director's look to each shot: bed, camera, entrance, fx."""
     beds, cams, ins = d["beds"], d["cams"], d["ins"]
     for i, s in enumerate(plan):
@@ -504,11 +506,11 @@ def decorate(plan: list, d: dict, rng: random.Random) -> None:
             s["cam"] = "none"
             s["fx"] = [f for f in s["fx"] if f != "wave"]
         if s["type"] == "endcard":
-            s["bg"] = "rings" if d["theme"]["bg_mode"] != "plasma" else "plasma"
+            s["bg"] = "rings" if theme_spec.get("bg_mode") != "halftone" else "halftone"
             s["cam"] = "pull"
             s["energy"] = round(d["energy"] * 0.55, 3)
         if s["type"] == "retro":
-            s["bg"] = "plasma"
+            s["bg"] = "halftone"
             s["cam"] = "none"
         # Structural shots carry their own geometry, so the bed stays quiet and
         # the camera stays still -- a drifting frame fights a diagram.
@@ -537,7 +539,7 @@ def decorate(plan: list, d: dict, rng: random.Random) -> None:
 def compose(story: dict, beatmap: dict, duration: float = 24.0,
             director: str | None = None, width: int = 1920,
             height: int = 1080, seed: int = 0,
-            insight: dict | None = None) -> dict:
+            insight: dict | None = None, theme: str | None = None) -> dict:
     dname, d = pick(director, story.get("kind", "project"))
     rng = random.Random(seed or story.get("seed") or 1)
 
@@ -546,14 +548,19 @@ def compose(story: dict, beatmap: dict, duration: float = 24.0,
         plan = build_creative_plan(story, insight, dname, d, rng, duration)
     else:
         plan = build_plan(story, dname, d, rng, duration)
-    decorate(plan, d, rng)
-    shots = _lay_out(plan, duration, beatmap)
 
-    theme = dict(d["theme"])
-    # Let a strong hero language tint the accent, unless the director is
-    # opinionated about colour (brutalist and terminal are).
-    if dname in ("cinematic", "orbit", "warm") and story.get("hero_color"):
-        theme["accent2"] = story["hero_color"]
+    # The director names a default theme; --theme overrides it. Look and
+    # pacing are independent axes, so any theme composes with any director.
+    theme_name = theme or d["theme"]
+    theme_spec = themes_mod.to_spec(theme_name)
+    # Let a strong hero language tint the second accent, but only when the
+    # theme was not explicitly chosen -- if someone asked for `ember`, they
+    # asked for ember, not ember-with-a-Python-blue.
+    if not theme and dname in ("cinematic", "orbit", "warm") and story.get("hero_color"):
+        theme_spec["accent2"] = story["hero_color"]
+
+    decorate(plan, d, rng, theme_spec)
+    shots = _lay_out(plan, duration, beatmap)
 
     return {
         "version": "2.0",
@@ -566,7 +573,8 @@ def compose(story: dict, beatmap: dict, duration: float = 24.0,
         "width": width,
         "height": height,
         "duration": round(duration, 4),
-        "theme": theme,
+        "theme": theme_spec,
+        "theme_name": theme_name,
         "shots": shots,
         "beatmap": {k: v for k, v in beatmap.items() if k != "beats"},
         "share": share_copy(story, d["label"]),

@@ -33,20 +33,25 @@ HEADER = """/* GENERATED FILE -- do not edit.
 
 BODY = """
 /**
- * A full-screen shader bed on a canvas. Same five modes as the renderer.
+ * A full-screen shader bed on a canvas, with the engine's whole bed library.
  *
  *   const bed = new CasedBed(canvas, { mode: 'aurora', bg, a1, a2 });
  *   bed.start();     // rAF loop
  *   bed.frame(t);    // or drive it yourself
+ *   CasedBed.MODES   // every bed name
+ *
+ * Programs are compiled per bed, on demand, exactly as the renderer does it:
+ * a page showing six beds should not compile eighty.
  */
 class CasedBed {
-  static MODES = { aurora: 0, grid: 1, stars: 2, plasma: 3, rings: 4 };
+  static MODES = Object.keys(CASED_BEDS);
 
   constructor(canvas, opts = {}) {
     this.canvas = canvas;
     this.opts = Object.assign(
       { mode: 'aurora', energy: 0.6, seed: 7, scale: 0.6,
         bg: '#06070C', a1: '#FF2D71', a2: '#00F0FF', speed: 1 }, opts);
+    this.progs = {};
     this.ok = this._init();
     this._raf = null;
     this._t0 = null;
@@ -58,36 +63,53 @@ class CasedBed {
     return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
   }
 
-  _sh(gl, type, src) {
+  _sh(type, src) {
+    const gl = this.gl;
     const s = gl.createShader(type);
     gl.shaderSource(s, src); gl.compileShader(s);
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-      console.warn('cased bed shader:', gl.getShaderInfoLog(s));
+      console.warn('cased bed:', gl.getShaderInfoLog(s));
+      gl.deleteShader(s);
       return null;
     }
     return s;
   }
 
+  _program(mode) {
+    if (this.progs[mode]) return this.progs[mode];
+    const gl = this.gl;
+    const body = CASED_BEDS[mode] || CASED_BEDS.aurora;
+    const vs = this._sh(gl.VERTEX_SHADER, CASED_VERT);
+    const fs = this._sh(gl.FRAGMENT_SHADER,
+      CASED_PRELUDE + '\\nvec3 bed(vec2 uv){\\n' + body + '\\n}\\n' + CASED_MAIN);
+    if (!vs || !fs) {
+      this.progs[mode] = mode === 'aurora' ? null : this._program('aurora');
+      return this.progs[mode];
+    }
+    const p = gl.createProgram();
+    gl.attachShader(p, vs); gl.attachShader(p, fs);
+    gl.bindAttribLocation(p, 0, 'p');
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      this.progs[mode] = mode === 'aurora' ? null : this._program('aurora');
+      return this.progs[mode];
+    }
+    const u = {};
+    for (const n of ['u_res','u_time','u_energy','u_seed','u_bg','u_a1','u_a2'])
+      u[n] = gl.getUniformLocation(p, n);
+    this.progs[mode] = { p, u };
+    return this.progs[mode];
+  }
+
   _init() {
     const gl = this.canvas.getContext('webgl', { antialias: false, alpha: false, depth: false });
     if (!gl) return false;
-    const vs = this._sh(gl, gl.VERTEX_SHADER, CASED_VERT);
-    const fs = this._sh(gl, gl.FRAGMENT_SHADER, CASED_FRAG);
-    if (!vs || !fs) return false;
-    const p = gl.createProgram();
-    gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return false;
-    gl.useProgram(p);
+    this.gl = gl;
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(p, 'p');
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    this.gl = gl;
-    this.u = {};
-    for (const n of ['u_res','u_time','u_mode','u_energy','u_seed','u_bg','u_a1','u_a2'])
-      this.u[n] = gl.getUniformLocation(p, n);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     this.resize();
     return true;
   }
@@ -108,15 +130,17 @@ class CasedBed {
   frame(t) {
     if (!this.ok) return;
     const gl = this.gl, o = this.opts;
+    const pr = this._program(o.mode in CASED_BEDS ? o.mode : 'aurora');
+    if (!pr) return;
+    gl.useProgram(pr.p);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    gl.uniform2f(this.u.u_res, this.canvas.width, this.canvas.height);
-    gl.uniform1f(this.u.u_time, t * o.speed);
-    gl.uniform1f(this.u.u_mode, CasedBed.MODES[o.mode] ?? 0);
-    gl.uniform1f(this.u.u_energy, o.energy);
-    gl.uniform1f(this.u.u_seed, o.seed);
-    gl.uniform3fv(this.u.u_bg, this._hex(o.bg));
-    gl.uniform3fv(this.u.u_a1, this._hex(o.a1));
-    gl.uniform3fv(this.u.u_a2, this._hex(o.a2));
+    gl.uniform2f(pr.u.u_res, this.canvas.width, this.canvas.height);
+    gl.uniform1f(pr.u.u_time, t * o.speed);
+    gl.uniform1f(pr.u.u_energy, o.energy);
+    gl.uniform1f(pr.u.u_seed, o.seed);
+    gl.uniform3fv(pr.u.u_bg, this._hex(o.bg));
+    gl.uniform3fv(pr.u.u_a1, this._hex(o.a1));
+    gl.uniform3fv(pr.u.u_a2, this._hex(o.a2));
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
@@ -138,18 +162,34 @@ window.CasedBed = CasedBed;
 
 
 def extract(src: str) -> tuple:
-    vert = re.search(r"const VERT = `([^`]*)`", src)
-    frag = re.search(r"const FRAG = `([^`]*)`", src)
-    if not vert or not frag:
-        raise SystemExit("could not find VERT/FRAG in stage.html")
-    return vert.group(1), frag.group(1)
+    """Pull the vertex shader, the shared prelude, the main wrapper and the
+    whole bed library out of the engine."""
+    def one(name):
+        m = re.search(r"const %s = `(.*?)`;" % name, src, re.S)
+        if not m:
+            raise SystemExit(f"could not find {name} in stage.html")
+        return m.group(1)
+
+    vert = one("VERT")
+    prelude = one("GL_PRELUDE")
+    main = one("GL_MAIN")
+
+    m = re.search(r"const BEDS = \{(.*?)\n\};", src, re.S)
+    if not m:
+        raise SystemExit("could not find BEDS in stage.html")
+    beds_body = m.group(1)
+    names = re.findall(r"^([a-z_][a-z0-9_]*):\s*`", beds_body, re.M)
+    return vert, prelude, main, beds_body, names
 
 
 def render() -> str:
-    vert, frag = extract(STAGE.read_text(encoding="utf-8"))
+    vert, prelude, main, beds_body, names = extract(STAGE.read_text(encoding="utf-8"))
     return (HEADER
+            + f"\n// {len(names)} beds, extracted verbatim from the engine.\n"
             + "\nconst CASED_VERT = `" + vert + "`;\n"
-            + "\nconst CASED_FRAG = `" + frag + "`;\n"
+            + "\nconst CASED_PRELUDE = `" + prelude + "`;\n"
+            + "\nconst CASED_MAIN = `" + main + "`;\n"
+            + "\nconst CASED_BEDS = {" + beds_body + "\n};\n"
             + BODY)
 
 

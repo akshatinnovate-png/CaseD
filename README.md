@@ -167,6 +167,79 @@ twenty seconds the eye has learned the format and starts reading the clock.
 | `compare` | "this, not that", pulled from the README |
 | `bigquote` | one claim, full-bleed |
 
+## Themes and graphics
+
+Look and pacing are separate axes. A **theme** is the palette and surface
+treatment; a **director** is pacing, shot grammar and transition vocabulary.
+Any theme composes with any director.
+
+```bash
+python3 -m cased . --theme ember --director terminal
+python3 -m cased . --list-themes
+python3 -m cased . --list-graphics
+```
+
+### 54 themes
+
+Grouped by family — `deep`, `warm`, `neon`, `terminal`, `bright`, `nature`,
+`jewel`. Each carries its own grain, scanline and letterbox settings, a default
+background bed, and the musical mood the scorer uses when the director has no
+opinion.
+
+| Family | Themes |
+|---|---|
+| deep | midnight · obsidian · abyss · voidline · graphite · eclipse · ironclad · slate · orbit · signal |
+| warm | ember · furnace · amber · terracotta · sunset · campfire · rust · goldleaf · hearth |
+| neon | neon · synthwave · vaporwave · cyberlime · hologram · magenta · acid · outrun |
+| terminal | phosphor · amber_crt · ibm · mono · hacker · oscilloscope |
+| bright | hotpink · newsprint · blueprint · riso · chalk · swiss · cyanotype |
+| nature | forest · ocean · glacier · desert · aurora_borealis · nebula · moss · storm |
+| jewel | royal · emerald · ruby · sapphire · copper · ultraviolet |
+
+### 302 graphics primitives
+
+```
+  54  themes           palette + grain + scanlines + vignette + letterbox + bed
+  65  shot types       the compositions that carry content
+  82  background beds  one GLSL program each, compiled on demand
+  45  overlay layers   particles, weather, HUD, signal, film
+  28  transitions      fades, wipes, clips, blurs, springs
+  21  camera moves     pushes, drifts, arcs, handheld
+   7  directors        pacing and shot grammar
+```
+
+Beds are compiled **lazily, one program per bed**. Putting 82 shader bodies
+behind an `if` chain would compile all 82 before the first frame, and under
+SwiftShader — which is what you get in any CI container, since there is no GPU —
+that costs seconds. A typical film uses four or five.
+
+Everything is verifiable, not asserted:
+
+```bash
+node scripts/gallery.mjs                 # render every primitive, fail on any blank
+node scripts/gallery.mjs --out /tmp/g    # ...and write the PNGs
+node scripts/gallery.mjs --only themes   # just the 54 themes
+```
+
+The self-test runs it, so a shot that throws — or silently paints an empty
+frame, which looks identical to one that was never scheduled — fails CI.
+
+### A note on the charts
+
+The chart shots follow the house data-viz rules: one hue per chart (sequential
+is the safe default), hairline solid gridlines, bars capped in thickness with a
+rounded data-end, a 2px surface gap doing the separating rather than strokes,
+and a legend whenever two or more series share a plot.
+
+Two deliberate departures, both forced by the medium:
+
+- **No hover layer.** A rendered video frame cannot be hovered, so the usual
+  "the tooltip carries the rest" escape does not exist. Every value a chart
+  plots is directly labelled instead.
+- **`tabular-nums` on animated figures.** Proportional digits are correct for a
+  static hero number, but these count up, and proportional digits make the
+  figure jitter sideways while it does.
+
 ## The directors
 
 A director is a complete point of view: palette, background bed, pacing,
@@ -227,6 +300,9 @@ python3 -m cased [path] [options]
 
   -d, --director NAME     cinematic | brutalist | terminal | hype | orbit | warm
   -c, --creative          long-form: architecture, history, the clever bit (~60s)
+      --theme NAME        palette and surface treatment (54 of them)
+      --list-themes       every theme, grouped by family
+      --list-graphics     every primitive the engine can draw
   -t, --duration SECONDS  runtime (default: 24; 60 with --creative)
   -f, --format SPEC       16:9 | 9:16 | 1:1 | 4:5 | all   (comma-separated ok)
   -q, --quality LEVEL     draft | good | high              (default: high)
@@ -273,6 +349,7 @@ frame, which is how real film grain reads anyway and roughly halves the file.
 
 ```
 cased/
+  themes.py          54 palettes; look is independent of pacing
   analyze.py         repo -> story.json          ~600 lines, stdlib only
   insight.py         the deep read for --creative: import graph, signature
                      function, techniques, cadence, claims
@@ -292,7 +369,8 @@ docs/                the launch site (GitHub Pages)
                      site's director gallery runs the renderer's own shader
 
 scripts/selftest.py  end-to-end smoke test, including a real 2.5s render
-scripts/sync_bed.py  regenerates docs/assets/bed.js
+scripts/sync_bed.py  regenerates docs/assets/bed.js from the engine's shaders
+scripts/gallery.mjs  renders every graphic primitive; fails on any blank frame
 
 examples/            the film cased2.0 made about itself
 ```
@@ -300,9 +378,10 @@ examples/            the film cased2.0 made about itself
 ## Developing
 
 ```bash
-python3 scripts/selftest.py          # full — renders a real 2.5s film
-python3 scripts/selftest.py --fast   # skip the render stage
-python3 scripts/sync_bed.py          # after editing the shader in stage.html
+python3 scripts/selftest.py          # full — render + the whole graphics gallery
+python3 scripts/selftest.py --fast   # skip the render and gallery stages
+python3 scripts/sync_bed.py          # after editing any shader in stage.html
+node scripts/gallery.mjs             # verify all 302 primitives render
 ```
 
 The self-test asserts the invariants that are easy to break by accident:
