@@ -250,6 +250,19 @@ reproducible from the seed.
 If you edit the fragment shader in `cased/engine/stage.html`, re-run
 `scripts/sync_bed.py` — CI fails if the site's copy has drifted.
 
+### Publishing the site
+
+CI deploys `docs/` to GitHub Pages on every push to `main`, but Pages has to be
+switched on once by a repository admin first:
+
+**Settings → Pages → Build and deployment → Source: _GitHub Actions_**
+
+This genuinely cannot be automated from the workflow. Creating a Pages site
+needs admin rights, and `GITHUB_TOKEN` does not have them at any `permissions:`
+level — `pages: write` grants deploying to a site that already exists, not
+creating one. Until it is enabled, the deploy job fails with
+`Get Pages site failed: Not Found`; the self-test job is unaffected.
+
 ## Credits
 
 cased2.0 is an independent reimagining of the idea behind

@@ -48,13 +48,15 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # `enablement: true` turns Pages on via the API and sets the build type
-      # to "GitHub Actions". Without it the action only *reads* the Pages
-      # config, and fails with "Get Pages site failed / Not Found" on a repo
-      # where Pages has never been switched on by hand.
+      # Pages must be switched on ONCE by a repository admin:
+      #   Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+      # This cannot be automated here. `enablement: true` looks like it would,
+      # but creating a Pages site needs admin rights, and GITHUB_TOKEN does not
+      # have them at any `permissions:` level -- `pages: write` grants deploying
+      # to an existing site, not creating one. With enablement the job fails
+      # with "Create Pages site failed: Resource not accessible by integration";
+      # without it, "Get Pages site failed: Not Found". Same one-time fix.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
