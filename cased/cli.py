@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 
-from .analyze import analyze
+from .analyze import analyze, plural
 from .compose import compose
 from .directors import DIRECTORS, pick
 from . import score as score_mod
@@ -174,11 +174,12 @@ def write_plan(outdir: Path, spec: dict, story: dict) -> None:
         lines.append(
             f"| {i} | {sh['in']} | {sh['type']} | {sh['start']:.2f}s "
             f"| {sh['dur']:.2f}s | {blurb} |")
+    st = story["stats"]
     lines += ["", "## What the analyzer found", "",
-              f"- {story['stats'].get('loc', 0):,} lines across "
-              f"{story['stats'].get('files', 0):,} files",
-              f"- {story['stats'].get('commits', 0):,} commits, "
-              f"{story['stats'].get('contributors', 0)} contributor(s)",
+              f"- {plural(st.get('loc', 0), 'line')} across "
+              f"{plural(st.get('files', 0), 'file')}",
+              f"- {plural(st.get('commits', 0), 'commit')}, "
+              f"{plural(st.get('contributors', 0), 'contributor')}",
               f"- Languages: " + ", ".join(
                   f"{l['name']} {l['share']}%" for l in story.get("languages", [])[:5]),
               ""]
@@ -229,8 +230,6 @@ def main(argv=None) -> int:
     story = json.loads(story_obj.to_json())
     (outdir / "story.json").write_text(story_obj.to_json(), encoding="utf-8")
     st = story["stats"]
-    def plural(n, word):
-        return f"{n:,} {word}" + ("" if n == 1 else "s")
     say(f"{story['name']} — {plural(st.get('loc', 0), 'line')}, "
         f"{plural(st.get('files', 0), 'file')}, "
         f"{plural(st.get('commits', 0), 'commit')}", "✓")

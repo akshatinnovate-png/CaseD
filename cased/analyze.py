@@ -495,6 +495,7 @@ def pick_code_moments(candidates: list, story: Story, want: int = 3) -> None:
 
     scored.sort(key=lambda t: -t[0])
     seen_dirs: set = set()
+    seen_captions: set = set()
     picked = 0
 
     for score, rel, lang, color, lines in scored:
@@ -514,7 +515,7 @@ def pick_code_moments(candidates: list, story: Story, want: int = 3) -> None:
             "color": color,
             "start_line": snippet[0],
             "code": snippet[1],
-            "caption": _caption_for(rel, lang),
+            "caption": _caption_for(rel, lang, seen_captions),
         })
 
 
@@ -550,21 +551,44 @@ def _best_slice(lines: list, span: int = 14) -> tuple | None:
     return best_i + 1, [l[pad:].rstrip()[:76] for l in win]
 
 
-def _caption_for(rel: str, lang: str) -> str:
+def _caption_for(rel: str, lang: str, used: set | None = None) -> str:
+    """A short caption for a code shot, never repeated across the film.
+
+    Two files can both look like an entry point -- `cli.py` and `index.html`
+    both match -- and captioning both "the entry point" reads as a bug on
+    screen. Fall back to the directory when the first choice is taken.
+    """
     stem = Path(rel).stem.lower()
+    pick = None
     if stem in {"main", "__main__", "index", "app", "cli"}:
-        return "the entry point"
-    if "engine" in stem or "core" in stem:
-        return "the engine room"
-    if "render" in stem or "draw" in stem:
-        return "where pixels happen"
-    if "server" in stem or "api" in stem or "route" in rel:
-        return "the wire protocol"
-    if "model" in stem or "schema" in stem:
-        return "the shape of the data"
-    if "parse" in stem or "lex" in stem or "token" in stem:
-        return "reading the input"
-    return f"{lang}, where it counts"
+        pick = "the entry point"
+    elif "engine" in stem or "core" in stem:
+        pick = "the engine room"
+    elif "render" in stem or "draw" in stem:
+        pick = "where pixels happen"
+    elif "server" in stem or "api" in stem or "route" in rel:
+        pick = "the wire protocol"
+    elif "model" in stem or "schema" in stem:
+        pick = "the shape of the data"
+    elif "parse" in stem or "lex" in stem or "token" in stem:
+        pick = "reading the input"
+    elif "score" in stem or "audio" in stem or "sound" in stem:
+        pick = "where the music comes from"
+    elif "compose" in stem or "edit" in stem:
+        pick = "cutting it together"
+    elif "analy" in stem or "scan" in stem:
+        pick = "reading the work"
+
+    if used is not None and pick in used:
+        pick = None
+    if pick is None:
+        parent = rel.rsplit("/", 1)[0] if "/" in rel else ""
+        cands = [f"inside {parent}" if parent else "", f"{lang}, where it counts",
+                 rel]
+        pick = next((c for c in cands if c and (used is None or c not in used)), rel)
+    if used is not None:
+        used.add(pick)
+    return pick
 
 
 # ---------------------------------------------------------------------------
@@ -691,6 +715,15 @@ def build_highlights(story: Story) -> None:
         add(len(story.languages), "languages")
 
     story.highlights = out[:5]
+
+
+def plural(n, word: str) -> str:
+    """`3 commits` / `1 commit`. Used anywhere a count reaches a human."""
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        return f"{n} {word}"
+    return f"{n:,} {word}" + ("" if n == 1 else "s")
 
 
 def _fmt(n) -> str:

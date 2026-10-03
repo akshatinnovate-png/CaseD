@@ -199,10 +199,10 @@ async function main() {
     // GIF has no interframe compression, so grain costs far more here than in
     // H.264. Fewer frames, fewer colours, and a coarse ordered dither keep a
     // 24-second film inside a few megabytes.
-    const gfps = 12, gw = width >= height ? 440 : 300;
+    const gfps = 10, gw = width >= height ? 360 : 260;
     const chain = `fps=${gfps},scale=${gw}:-2:flags=lanczos`;
     await run(['-i', OUT_PATH, '-vf',
-      `${chain},palettegen=max_colors=64:stats_mode=diff`, pal]);
+      `${chain},palettegen=max_colors=48:stats_mode=diff`, pal]);
     await run(['-i', OUT_PATH, '-i', pal, '-lavfi',
       `${chain}[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5`, GIF]);
     rmSync(pal, { force: true });        // the palette is scratch, not output

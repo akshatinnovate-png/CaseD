@@ -9,6 +9,8 @@ score, motion, beat-matched cuts, and share copy — from one command.
 
 No API keys. No cloud render. No bundled music. Nothing to subscribe to.
 
+**[→ See the launch site](https://akshatinnovate-png.github.io/CaseD/)**
+
 [What it does](#what-it-does) · [Install](#install) · [Directors](#the-directors) · [How it works](#how-it-works) · [Output](#what-you-get)
 
 </div>
@@ -25,7 +27,8 @@ cuts the picture to the beat, and renders an MP4.
 python3 -m cased .
 ```
 
-That's the whole interface. Twenty-four seconds later you have a film.
+That's the whole interface. A few minutes later you have twenty-four seconds
+of film, a soundtrack, and the copy to post with it.
 
 <div align="center">
 

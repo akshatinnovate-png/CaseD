@@ -18,6 +18,7 @@ import random
 import re
 from pathlib import Path
 
+from .analyze import plural
 from .directors import pick
 
 MIN_SHOT = 1.15          # below this a shot reads as a flicker
@@ -58,9 +59,9 @@ def share_copy(story: dict, director: str) -> dict:
 
     proof = []
     if loc:
-        proof.append(f"{loc:,} lines")
+        proof.append(plural(loc, "line"))
     if commits:
-        proof.append(f"{commits:,} commits")
+        proof.append(plural(commits, "commit"))
     proof_s = " · ".join(proof)
 
     x = f"{name}\n\n{tag}"
@@ -81,10 +82,14 @@ def share_copy(story: dict, director: str) -> dict:
         "linkedin": linkedin.strip(),
         "hn": f"Show HN: {name} – {tag[:70].rstrip('.')}" if tag else f"Show HN: {name}",
         "product_hunt": tag[:60] if tag else f"{name}, now public",
+        # Alt text describes the film for someone who cannot watch it, so it
+        # leads with what the film shows rather than repeating the sales line.
         "alt_text": (
-            f"A {director} launch film for {name}: "
-            f"{tag[:110]}"
-        ).strip(),
+            f"A {director.lower()} launch film for {name}"
+            + (f", described as: {tag[:110].rstrip('.')}" if tag else "")
+            + ". Title cards, measured statistics, real source code and an "
+              "end card, cut to a synthesised soundtrack."
+        ),
     }
 
 
@@ -212,13 +217,22 @@ def build_plan(story: dict, dname: str, d: dict, rng: random.Random,
         "rule": True,
     }, 1.05)
 
-    # 2 — what it actually is
+    # 2 — what it actually is.
+    # The hook is normally the head of the description, so playing the
+    # description next repeats the opening card word for word. Show whatever
+    # the hook left behind; if it left nothing, skip the beat.
+    hook = plan[0]["data"]["text"]
     desc = story.get("description") or story.get("tagline") or ""
-    if desc and len(desc) > 24:
+    second = desc
+    if desc.lower().startswith(hook.lower()[:40]):
+        second = desc[len(hook):].lstrip(" \u2014\u2013-:,.").strip()
+        if second:
+            second = second[0].upper() + second[1:]
+    if second and len(second) > 24:
         add("title", {
             "kicker": "what it is",
-            "text": desc if len(desc) < 110 else desc[:108].rsplit(" ", 1)[0] + "...",
-            "size": 92 if len(desc) > 60 else 118,
+            "text": second if len(second) < 110 else second[:108].rsplit(" ", 1)[0] + "...",
+            "size": 92 if len(second) > 60 else 118,
             "perLine": 4,
             "rule": False,
         }, 1.25)
