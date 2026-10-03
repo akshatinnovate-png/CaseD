@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Make a film — cased2.0</title>
+<meta name="description" content="Paste a GitHub repo. cased2.0 reads it in your browser, matches a theme to the frontend it actually ships, scores the film and cuts it to the beat. No install.">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/make.css">
+</head>
+<body class="make">
+
+<header class="mk-top">
+  <a class="mk-back" href="./">&larr; cased2.0</a>
+  <span class="mk-top-note">everything below runs in this tab</span>
+</header>
+
+<main class="mk">
+
+  <!-- ---------------------------------------------------------------- 1 -->
+  <section class="mk-step" id="step-repo" data-step="1">
+    <div class="mk-head">
+      <span class="mk-num">01</span>
+      <h1 class="mk-h">Paste a repo.</h1>
+      <p class="mk-sub">
+        Public GitHub. Read straight from the API in this tab &mdash; nothing is
+        uploaded, and there is no backend to upload it to.
+      </p>
+    </div>
+
+    <div class="mk-row">
+      <div class="mk-field">
+        <label for="repo">Repository</label>
+        <input id="repo" type="text" spellcheck="false" autocomplete="off"
+               placeholder="owner/name  or  https://github.com/owner/name">
+        <p class="mk-hint" id="repo-hint">A URL, <code>owner/name</code>, or an SSH remote.</p>
+      </div>
+
+      <div class="mk-field mk-field--key">
+        <label for="groq">Groq API key <span class="mk-opt">optional</span></label>
+        <div class="mk-key">
+          <input id="groq" type="password" spellcheck="false" autocomplete="off"
+                 placeholder="gsk_…">
+          <button id="groq-check" class="mk-mini" type="button">Check</button>
+        </div>
+        <p class="mk-hint" id="groq-hint">
+          Writes the copy. Kept in this browser, sent only to api.groq.com.
+          Without it the copy comes from your README.
+        </p>
+      </div>
+    </div>
+
+    <button id="go" class="mk-cta" type="button">
+      <span>Make the film</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+    </button>
+
+    <ul class="mk-log" id="log" aria-live="polite"></ul>
+  </section>
+
+  <!-- ---------------------------------------------------------------- 2 -->
+  <section class="mk-step" id="step-read" data-step="2" hidden>
+    <div class="mk-head">
+      <span class="mk-num">02</span>
+      <h2 class="mk-h">What it found.</h2>
+      <p class="mk-sub">Measured, not guessed. Every number here came out of the repository.</p>
+    </div>
+    <div class="mk-found" id="found"></div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- 3 -->
+  <section class="mk-step" id="step-theme" data-step="3" hidden>
+    <div class="mk-head">
+      <span class="mk-num">03</span>
+      <h2 class="mk-h">Pick the look.</h2>
+      <p class="mk-sub" id="theme-sub">
+        The frontend's own palette, read from its style files, ranked against
+        68 themes. Take the match or take any other.
+      </p>
+    </div>
+
+    <div class="mk-palette" id="palette" hidden>
+      <h3>Its palette</h3>
+      <div class="mk-swatches" id="swatches"></div>
+      <p class="mk-evidence" id="evidence"></p>
+    </div>
+
+    <div class="mk-controls">
+      <div class="mk-field">
+        <label for="director">Director <span class="mk-opt">pacing &amp; shot grammar</span></label>
+        <select id="director"></select>
+      </div>
+      <div class="mk-field">
+        <label for="duration">Runtime</label>
+        <select id="duration">
+          <option value="12">12 seconds</option>
+          <option value="20">20 seconds</option>
+          <option value="24" selected>24 seconds</option>
+          <option value="30">30 seconds</option>
+          <option value="40">40 seconds</option>
+        </select>
+        <p class="mk-hint">
+          Past 40s the shot list runs out and every shot overstays. A minute-long
+          film wants <code>--creative</code>, which reads the architecture and
+          writes a longer one.
+        </p>
+      </div>
+      <div class="mk-field">
+        <label for="filter">Themes</label>
+        <select id="filter"><option value="">Best match first</option></select>
+      </div>
+    </div>
+
+    <div class="mk-themes" id="themes"></div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- 4 -->
+  <section class="mk-step" id="step-film" data-step="4" hidden>
+    <div class="mk-head">
+      <span class="mk-num">04</span>
+      <h2 class="mk-h">Watch it.</h2>
+      <p class="mk-sub" id="film-sub"></p>
+    </div>
+
+    <div class="mk-stage">
+      <div class="mk-screen">
+        <iframe id="stage" src="engine/stage.html" title="Film preview"
+                scrolling="no" tabindex="-1"></iframe>
+        <div class="mk-screen-wait" id="screen-wait">building…</div>
+      </div>
+
+      <div class="mk-transport">
+        <button id="play" class="mk-play" type="button" aria-label="Play">
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h4v16H7zM14 4h4v16h-4z"/></svg>
+        </button>
+        <input id="scrub" class="mk-scrub" type="range" min="0" max="1000" value="0"
+               aria-label="Scrub">
+        <span class="mk-time" id="time">0.0 / 0.0</span>
+      </div>
+
+      <div class="mk-marks" id="marks" aria-hidden="true"></div>
+      <p class="mk-mark-note">Each tick is a cut. Each one lands on a beat of the score.</p>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- 5 -->
+  <section class="mk-step" id="step-get" data-step="5" hidden>
+    <div class="mk-head">
+      <span class="mk-num">05</span>
+      <h2 class="mk-h">Take it with you.</h2>
+    </div>
+
+    <div class="mk-gets">
+      <article class="mk-get">
+        <h3>Record it here</h3>
+        <p>
+          Captures this tab while the film plays, with the score, and saves a
+          WebM. It runs in real time and records at your window's size, so the
+          file is as good as your screen &mdash; not as good as the renderer.
+        </p>
+        <button id="dl-video" class="mk-get-btn" type="button">Record WebM</button>
+        <p class="mk-get-note" id="rec-note"></p>
+      </article>
+
+      <article class="mk-get mk-get--best">
+        <h3>Render it properly <span class="mk-badge">1080p</span></h3>
+        <p>
+          The same spec, frame-stepped through the same engine and encoded with
+          FFmpeg: 1920&times;1080, every frame exact. Download the spec and run
+          one command.
+        </p>
+        <div class="mk-cmd"><code id="cmd"></code><button id="copy-cmd" class="mk-mini" type="button">Copy</button></div>
+        <p class="mk-get-note">Or a full minute, with the architecture and history read in:</p>
+        <div class="mk-cmd"><code id="cmd-long"></code><button id="copy-long" class="mk-mini" type="button">Copy</button></div>
+        <div class="mk-get-pair">
+          <button id="dl-spec" class="mk-get-btn" type="button">spec.json</button>
+          <button id="dl-wav" class="mk-get-btn" type="button">score.wav</button>
+        </div>
+      </article>
+
+      <article class="mk-get">
+        <h3>Copy to post with</h3>
+        <p>Written from the same measured facts. Use it as it is.</p>
+        <div class="mk-share" id="share"></div>
+      </article>
+    </div>
+  </section>
+
+</main>
+
+<footer class="mk-foot">
+  <p>
+    cased2.0 reads the repository, not a webpage. The numbers on screen are
+    measured from the code and the soundtrack is synthesised, not licensed.
+  </p>
+</footer>
+
+<script type="module" src="assets/make.js"></script>
+</body>
+</html>

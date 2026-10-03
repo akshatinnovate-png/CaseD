@@ -200,7 +200,8 @@ def main(argv) -> int:
         print("\nbrowser port")
         for script, label in (("check_random.mjs", "browser RNG matches CPython's"),
                               ("check_score.mjs", "browser scorer matches cased/score.py"),
-                              ("check_compose.mjs", "browser composer matches cased/compose.py")):
+                              ("check_compose.mjs", "browser composer matches cased/compose.py"),
+                              ("check_guard.mjs", "the guard rejects numbers nobody measured")):
             r = subprocess.run(["node", str(ROOT / "scripts" / script)],
                                capture_output=True, text=True, cwd=ROOT)
             tail = (r.stdout or r.stderr).strip().splitlines()

@@ -63,6 +63,37 @@ Most launch-video tools ask for a URL and screenshot it. cased2.0 reads the work
 - **Ships every aspect ratio.** 16:9, 9:16, 1:1, 4:5, plus a GIF, a poster frame
   and post-ready copy for X, LinkedIn, HN and Product Hunt.
 
+## Make one without installing anything
+
+**[akshatinnovate-png.github.io/CaseD/make.html](https://akshatinnovate-png.github.io/CaseD/make.html)**
+
+Paste a public repo and watch the film in the page. It reads the repository
+through the GitHub API, reads the style files the frontend actually ships and
+matches a theme to its palette, scores the music, cuts to the beat and plays
+the result — all in the tab, with no backend and nothing uploaded.
+
+The browser runs the same pipeline the CLI does. `forge/random.js` is CPython's
+Mersenne Twister, and `forge/score.js` and `forge/compose.js` are ports of
+`cased/score.py` and `cased/compose.py`, each checked against its Python
+original in CI: the scorer is sample-identical, the composer matches every cut
+time. So the spec you download renders the film you just watched.
+
+Two things only the CLI can do:
+
+- **Record at full quality.** The page can record the tab to a WebM, which runs
+  in real time at your window's size. For 1920×1080 with every frame exact, use
+  the spec download and the one-line command printed beside it.
+- **Films longer than about 40 seconds.** Past that the standard shot list runs
+  out and every shot overstays, so the page stops there. `--creative` reads the
+  architecture and the history and writes a long enough one.
+
+Bring a [Groq](https://console.groq.com) key if you want a model to write the
+copy. It is optional, it stays in your browser, and it is sent to nobody but
+Groq. The model may only phrase things — every line it writes is checked
+against the numbers actually measured from the repository, and any line
+quoting a number that is not there is dropped. Without a key the copy comes
+from your README, and the film is identical in structure either way.
+
 ## Install
 
 cased2.0 is Python 3.9+ standard library, plus Node and FFmpeg for the render.
@@ -344,6 +375,11 @@ frame, which is how real film grain reads anyway and roughly halves the file.
   within a platform; very slightly different across them.
 - **The synthesised score is a score, not a song.** It is built to sit under a
   voiceover-free 24-second film and get out of the way.
+- **The web page cannot deploy your frontend.** A static site has no builder and
+  nowhere to deploy to. It does not need one: the colours a frontend ships are
+  already in its style files, so it reads those instead and matches a theme to
+  the palette it finds. It also reads at most a handful of files, because an
+  unauthenticated browser gets 60 GitHub API calls an hour.
 
 ## What's in this repo
 

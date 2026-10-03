@@ -347,6 +347,9 @@ export async function analyzeRepo({ owner, repo }, token, onStep = () => {}) {
       .map(c => c.login).filter(Boolean).slice(0, 9),
     readme,
     treePaths: tree.filter(t => t.type === 'blob').map(t => t.path),
+    // The raw entries, with type and size, so the code-shot picker can rank
+    // files without fetching any of them first.
+    tree_raw: tree.map(t => ({ path: t.path, type: t.type, size: t.size || 0 })),
     summaryLine: [plural(stats.files, 'file'),
                   languages[0] ? `${languages[0].share}% ${languages[0].name}` : null,
                   stats.stars > 9 ? plural(stats.stars, 'star') : null]

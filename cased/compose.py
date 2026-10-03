@@ -25,6 +25,23 @@ from . import themes as themes_mod
 #: Rows the `callout` shot draws. Must match the slice in stage.html.
 CALLOUT_LINES = 13
 
+#: Longest "what it is" card that still fits the engine's four-line box.
+CARD_CHARS = 76
+
+#: Words that read badly as the last one before an ellipsis.
+_TRAIL = {"the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "with",
+          "by", "from", "into", "as", "that", "which", "its", "it", "this"}
+
+
+def _ellipsis(text: str, limit: int) -> str:
+    """Trim to `limit`, on a word boundary, not ending on a dangling word."""
+    if len(text) <= limit:
+        return text
+    words = text[:limit].rsplit(" ", 1)[0].split()
+    while len(words) > 3 and words[-1].strip(",;:").lower() in _TRAIL:
+        words.pop()
+    return " ".join(words).rstrip(",;:") + "..."
+
 MIN_SHOT = 1.15          # below this a shot reads as a flicker
 MAX_SHOT = 4.60          # above this the eye wanders
 
@@ -233,10 +250,13 @@ def build_plan(story: dict, dname: str, d: dict, rng: random.Random,
         if second:
             second = second[0].upper() + second[1:]
     if second and len(second) > 24:
+        # A title card is read in two seconds, so this stays a line and not a
+        # paragraph. The budget used to be 108 characters at a pinned 92px,
+        # which overran the four-line box and clipped the sentence mid-phrase;
+        # the engine already sizes type to its length, so let it.
         add("title", {
             "kicker": "what it is",
-            "text": second if len(second) < 110 else second[:108].rsplit(" ", 1)[0] + "...",
-            "size": 92 if len(second) > 60 else 118,
+            "text": _ellipsis(second, CARD_CHARS),
             "perLine": 4,
             "rule": False,
         }, 1.25)

@@ -1,0 +1,697 @@
+// The Make flow: paste a repo, get a film, in this tab.
+//
+// Everything here runs client-side. The GitHub REST API sends
+// Access-Control-Allow-Origin: *, so the repository can be read straight from
+// the page; the scorer, the composer and the engine are the same code the CLI
+// runs, so the film previewed here is the film the CLI renders from the spec.
+//
+// What a static page genuinely cannot do is deploy the project's frontend —
+// there is no builder, no node, nowhere to deploy to. It does not need to:
+// the colours a frontend ships are already in its style files, so forge reads
+// those and matches a theme to them. No deploy, same outcome.
+
+import { parseRepo, analyzeRepo, getFile, RateLimited } from './forge/github.js';
+import { readFrontend, rankThemes } from './forge/palette.js';
+import { readCodeMoments } from './forge/code.js';
+import { composeScore, wavBytes, toAudioBuffer, SR } from './forge/score.js';
+import { compose, pickDirector } from './forge/compose.js';
+import * as groq from './forge/groq.js';
+
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+
+const S = {
+  themes: null, directors: null,
+  story: null, frontend: null, ranked: [],
+  theme: null, director: null, duration: 24,
+  spec: null, bus: null, beatmap: null, copy: null,
+  playing: false, raf: 0, startedAt: 0, startedFrom: 0,
+  audioCtx: null, audioBuf: null, audioNode: null,
+};
+
+// ------------------------------------------------------------------- log
+
+function log(msg, kind) {
+  const li = el('li', kind || '', msg);
+  $('#log').append(li);
+  return li;
+}
+const clearLog = () => { $('#log').textContent = ''; };
+
+function show(id) {
+  const n = $(id);
+  n.hidden = false;
+  return n;
+}
+
+// ------------------------------------------------------------- boot data
+
+const dataReady = (async () => {
+  const [themes, directors] = await Promise.all([
+    fetch('assets/themes.json').then(r => r.json()),
+    fetch('assets/directors.json').then(r => r.json()),
+  ]);
+  S.themes = themes;
+  S.directors = directors;
+
+  const dsel = $('#director');
+  dsel.append(el('option', '', 'Match the project'));
+  dsel.firstChild.value = '';
+  for (const [name, d] of Object.entries(directors)) {
+    const o = el('option', '', `${d.label} — ${d.blurb}`);
+    o.value = name;
+    dsel.append(o);
+  }
+
+  const fsel = $('#filter');
+  const fams = [...new Set(Object.values(themes).map(t => t.family))].sort();
+  for (const f of fams) {
+    const o = el('option', '', f[0].toUpperCase() + f.slice(1));
+    o.value = f;
+    fsel.append(o);
+  }
+})();
+
+// ---------------------------------------------------------------- the key
+
+const keyInput = $('#groq');
+const keyHint = $('#groq-hint');
+try {
+  const saved = groq.getKey();
+  if (saved) { keyInput.value = saved; keyHint.textContent = 'Key loaded from this browser.'; }
+} catch { /* storage blocked: run keyless */ }
+
+keyInput.addEventListener('change', () => {
+  const v = keyInput.value.trim();
+  keyHint.className = 'mk-hint';
+  if (!v) {
+    groq.clearKey();
+    keyHint.textContent = 'No key. The copy will come from your README.';
+    return;
+  }
+  if (!groq.looksLikeKey(v)) {
+    keyHint.textContent = 'That does not look like a Groq key (they start gsk_).';
+    keyHint.classList.add('bad');
+    return;
+  }
+  groq.setKey(v);
+  keyHint.textContent = 'Saved in this browser only. Press Check to confirm it works.';
+});
+
+$('#groq-check').addEventListener('click', async () => {
+  const v = keyInput.value.trim();
+  keyHint.className = 'mk-hint';
+  if (!v) { keyHint.textContent = 'Nothing to check — the film works without a key.'; return; }
+  keyHint.textContent = 'Checking…';
+  try {
+    const { model } = await groq.checkKey(v);
+    groq.setKey(v);
+    keyHint.textContent = `Working. Copy will be written by ${model}.`;
+    keyHint.classList.add('good');
+  } catch (e) {
+    keyHint.textContent = e.status === 401
+      ? 'Groq rejected that key.'
+      : `${e.message}. The film still works without a key.`;
+    keyHint.classList.add('bad');
+  }
+});
+
+// --------------------------------------------------------------- the run
+
+$('#repo').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
+
+$('#go').addEventListener('click', async () => {
+  const raw = $('#repo').value.trim();
+  const repo = parseRepo(raw);
+  const hint = $('#repo-hint');
+  if (!repo) {
+    $('#repo').setAttribute('aria-invalid', 'true');
+    hint.textContent = 'Could not read an owner and name out of that.';
+    hint.className = 'mk-hint bad';
+    return;
+  }
+  $('#repo').removeAttribute('aria-invalid');
+  hint.className = 'mk-hint';
+  hint.textContent = `Reading ${repo.owner}/${repo.repo}…`;
+
+  $('#go').disabled = true;
+  clearLog();
+  stop();
+
+  try {
+    await dataReady;
+    await run(repo);
+  } catch (e) {
+    if (e instanceof RateLimited) {
+      log(`GitHub rate-limited this browser. It resets at ${e.resetAt
+        ? new Date(e.resetAt).toLocaleTimeString() : 'the top of the hour'}. `
+        + 'A personal access token raises the limit a long way.', 'err');
+    } else {
+      log(e.message || String(e), 'err');
+    }
+  } finally {
+    $('#go').disabled = false;
+  }
+});
+
+async function run(repo) {
+  // --- 1. read the repository
+  const story = await analyzeRepo(repo, null, s => log(s));
+  S.story = story;
+  log(`${story.full_name}: ${story.summaryLine}`, 'done');
+  renderFound(story);
+  show('#step-read');
+
+  // --- 2. read the frontend it ships, and rank the themes against it
+  const front = await readFrontend(repo, story.treePaths, null, story.branch, s => log(s));
+  S.frontend = front;
+  if (front.frameworks.length) {
+    log(`frontend: ${front.frameworks.map(f => f.name).join(', ')} in ${front.root}/`, 'done');
+  } else if (front.isFrontend) {
+    log(`frontend: ${front.counts.styles} style and ${front.counts.html} HTML `
+      + `files in ${front.root}/`, 'done');
+  } else {
+    log('no frontend found, so the theme is yours to pick', 'done');
+  }
+
+  // --- 3. real source for the code shots
+  story.code_moments = await readCodeMoments(repo, story, null, { onStep: s => log(s) });
+  if (story.code_moments.length) {
+    log(`source: ${story.code_moments.map(m => m.path).join(', ')}`, 'done');
+  } else {
+    log('no file was a good fit for a code shot, so the film skips them', 'done');
+  }
+
+  S.ranked = front.palette ? rankThemes(front.palette, S.themes) : [];
+  if (front.palette) {
+    log(`palette: ${front.palette.accent} on ${front.palette.bg} `
+      + `(${front.palette.sampled} colours read) -> ${S.ranked[0].name} `
+      + `at ${S.ranked[0].match}%`, 'done');
+  }
+  renderPalette(front);
+  S.theme = S.ranked.length ? S.ranked[0].name : null;
+  renderThemes();
+  show('#step-theme');
+
+  // --- 4. the copy
+  const key = groq.getKey();
+  if (key) {
+    log('asking Groq for the copy…');
+    try {
+      S.copy = await groq.enrich(
+        { story, frontend: front, directors: S.directors, theme: S.theme }, key);
+      const d = S.copy.dropped.length;
+      log(`copy by ${S.copy.model}`
+        + (d ? `, ${d} line${d === 1 ? '' : 's'} dropped for quoting a number `
+             + 'nobody measured' : ''), 'done');
+    } catch (e) {
+      S.copy = groq.offlineCopy(story);
+      log(`Groq: ${e.message}. Using the README instead.`, 'err');
+    }
+  } else {
+    S.copy = groq.offlineCopy(story);
+  }
+
+  await build();
+  show('#step-film');
+  show('#step-get');
+  $('#step-film').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// --------------------------------------------------------------- the film
+
+/** Fold the chosen copy back into the story the composer reads. */
+function storyForFilm() {
+  const s = { ...S.story };
+  const c = S.copy;
+  if (!c) return s;
+  if (c.hook) s.tagline = c.hook;
+  if (c.what_it_is) s.description = c.what_it_is;
+  if (c.features && c.features.length >= 2) s.features = c.features;
+  // The composer reads `kind` to pick a director and `code_moments` to show
+  // source; neither is invented here, both come out of the analyzer.
+  s.kind = s.kind || 'project';
+  return s;
+}
+
+async function build() {
+  const wait = $('#screen-wait');
+  wait.hidden = false;
+  wait.textContent = 'scoring…';
+
+  S.duration = Number($('#duration').value);
+  const chosen = $('#director').value || null;
+  const story = storyForFilm();
+
+  // Mood follows the theme unless the director pins one, exactly as the CLI.
+  const dname = chosen || S.copy?.director || pickDirector(story, S.directors);
+  const t = S.themes[S.theme] || S.themes[S.directors[dname].theme];
+  const mood = S.directors[dname].mood || t.mood || 'cinematic';
+  const seed = S.story.stats.files + S.story.stats.commits_seen || 1;
+
+  const { bus, beatmap } = composeScore(S.duration, mood, seed,
+                                        S.directors[dname].intensity ?? 1);
+  S.bus = bus;
+  S.beatmap = beatmap;
+
+  wait.textContent = 'cutting…';
+  S.spec = compose(story, beatmap, {
+    duration: S.duration, director: dname, theme: S.theme,
+    seed, themes: S.themes, directors: S.directors,
+  });
+  S.director = dname;
+
+  $('#film-sub').textContent =
+    `${S.spec.shots.length} shots over ${S.duration}s, cut to ${beatmap.bpm} BPM. `
+    + `${S.directors[dname].label} direction, ${S.spec.theme_name} palette.`;
+
+  await loadStage();
+  renderMarks();
+  renderGet();
+  fitStage();
+  wait.hidden = true;
+}
+
+function stageWin() {
+  const f = $('#stage');
+  return f && f.contentWindow && f.contentWindow.__CASED ? f.contentWindow : null;
+}
+
+async function loadStage() {
+  const f = $('#stage');
+  // The iframe may still be loading on the first run.
+  if (!stageWin()) {
+    await new Promise(res => {
+      if (stageWin()) return res();
+      f.addEventListener('load', res, { once: true });
+      setTimeout(res, 4000);
+    });
+  }
+  const w = stageWin();
+  if (!w) { log('the preview engine did not load', 'err'); return; }
+  w.__CASED.load(S.spec);
+  w.__CASED.seek(0);
+  seekUI(0);
+}
+
+/**
+ * The engine draws at 1920x1080; scale it to whatever the screen gives us.
+ *
+ * A hidden step has no width, so measuring before the step is revealed scales
+ * the film to nothing — which looks exactly like a renderer that failed. Skip
+ * the zero and let the observer below do it again once the box has a size.
+ */
+function fitStage() {
+  const box = $('.mk-screen');
+  const f = $('#stage');
+  if (!box || !f) return;
+  const w = box.clientWidth;
+  if (w < 1) return;
+  f.style.transform = `scale(${w / 1920})`;
+}
+addEventListener('resize', fitStage);
+// Covers reveal, resize and zoom without anyone having to remember the order.
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(fitStage).observe($('.mk-screen'));
+}
+
+// ------------------------------------------------------------- transport
+
+function seekUI(t) {
+  const d = S.duration || 1;
+  $('#scrub').value = String(Math.round((t / d) * 1000));
+  $('#time').textContent = `${t.toFixed(1)} / ${d.toFixed(1)}`;
+}
+
+function seek(t) {
+  const w = stageWin();
+  if (w) w.__CASED.seek(Math.max(0, Math.min(S.duration, t)));
+  seekUI(t);
+}
+
+function play(from = 0) {
+  const w = stageWin();
+  if (!w || !S.bus) return;
+  stop();
+  S.playing = true;
+  $('#play').classList.add('on');
+
+  // Audio and picture share one clock: the AudioContext's. Driving the frames
+  // off currentTime keeps them locked even when a frame takes too long.
+  try {
+    S.audioCtx = S.audioCtx || new (window.AudioContext || window.webkitAudioContext)({
+      sampleRate: SR,
+    });
+    S.audioBuf = S.audioBuf || toAudioBuffer(S.audioCtx, S.bus);
+    S.audioNode = S.audioCtx.createBufferSource();
+    S.audioNode.buffer = S.audioBuf;
+    S.audioNode.connect(S.audioCtx.destination);
+    S.audioNode.start(0, from);
+  } catch { S.audioNode = null; }
+
+  const t0 = S.audioCtx ? S.audioCtx.currentTime : performance.now() / 1000;
+  const tick = () => {
+    if (!S.playing) return;
+    const now = S.audioCtx ? S.audioCtx.currentTime : performance.now() / 1000;
+    const t = from + (now - t0);
+    if (t >= S.duration) { seek(S.duration); stop(); return; }
+    seek(t);
+    S.raf = requestAnimationFrame(tick);
+  };
+  S.raf = requestAnimationFrame(tick);
+}
+
+function stop() {
+  S.playing = false;
+  $('#play')?.classList.remove('on');
+  if (S.raf) cancelAnimationFrame(S.raf);
+  S.raf = 0;
+  if (S.audioNode) { try { S.audioNode.stop(); } catch { /* already stopped */ } }
+  S.audioNode = null;
+}
+
+$('#play').addEventListener('click', () => {
+  if (S.playing) stop();
+  else {
+    const at = (Number($('#scrub').value) / 1000) * S.duration;
+    play(at >= S.duration - 0.05 ? 0 : at);
+  }
+});
+
+$('#scrub').addEventListener('input', () => {
+  stop();
+  seek((Number($('#scrub').value) / 1000) * S.duration);
+});
+
+$('#duration').addEventListener('change', () => { if (S.story) build(); });
+$('#director').addEventListener('change', () => { if (S.story) build(); });
+
+// --------------------------------------------------------------- renderers
+
+function renderFound(story) {
+  const box = $('#found');
+  box.textContent = '';
+  const row = (label, build) => {
+    const r = el('div', 'mk-found-row');
+    r.append(el('dt', '', label));
+    const dd = el('dd');
+    build(dd);
+    r.append(dd);
+    box.append(r);
+  };
+
+  row('Project', dd => {
+    dd.append(el('div', '', story.name));
+    if (story.tagline) {
+      const p = el('div', '', story.tagline);
+      p.style.color = 'var(--muted)';
+      p.style.fontSize = '13px';
+      p.style.marginTop = '4px';
+      dd.append(p);
+    }
+  });
+
+  if (story.highlights.length) {
+    row('Measured', dd => {
+      const ul = el('ul');
+      for (const h of story.highlights) {
+        const li = el('li');
+        const n = el('span', 'num', h.value);
+        li.append(n, document.createTextNode(' ' + h.label));
+        ul.append(li);
+      }
+      dd.append(ul);
+    });
+  }
+
+  if (story.languages.length) {
+    row('Languages', dd => {
+      const bar = el('div', 'mk-langbar');
+      for (const l of story.languages.slice(0, 6)) {
+        const i = el('i');
+        i.style.width = `${l.share}%`;
+        i.style.background = l.color;
+        bar.append(i);
+      }
+      const keys = el('div', 'mk-langkeys');
+      for (const l of story.languages.slice(0, 6)) {
+        const s = el('span');
+        const b = el('b');
+        b.style.background = l.color;
+        s.append(b, document.createTextNode(`${l.name} ${l.share}%`));
+        keys.append(s);
+      }
+      dd.append(bar, keys);
+    });
+  }
+
+  if (story.features.length) {
+    row('From the README', dd => {
+      const ul = el('ul');
+      for (const f of story.features.slice(0, 5)) ul.append(el('li', '', f));
+      dd.append(ul);
+    });
+  }
+
+  if (story.timeline.length) {
+    row('Recent work', dd => {
+      const ul = el('ul');
+      for (const t of story.timeline.slice(-4)) ul.append(el('li', '', t.text));
+      dd.append(ul);
+    });
+  }
+}
+
+function renderPalette(front) {
+  const wrap = $('#palette');
+  const p = front.palette;
+  if (!p) {
+    wrap.hidden = true;
+    $('#theme-sub').textContent =
+      'No style files to read a palette from, so every theme is on the table.';
+    return;
+  }
+  wrap.hidden = false;
+  const box = $('#swatches');
+  box.textContent = '';
+  for (const [role, hex] of [['ground', p.bg], ['ink', p.fg],
+                             ['accent', p.accent], ['second', p.accent2]]) {
+    const s = el('div', 'mk-swatch');
+    const i = el('i');
+    i.style.background = hex;
+    s.append(i, el('span', '', role), el('code', '', hex));
+    box.append(s);
+  }
+  const names = [...new Set([...(p.evidence.bg || []), ...(p.evidence.accent || [])])]
+    .filter(Boolean).slice(0, 4);
+  $('#evidence').textContent = [
+    `read from ${front.read.length} file${front.read.length === 1 ? '' : 's'}: `
+      + front.read.join(', '),
+    names.length ? `tokens: ${names.map(n => '--' + n).join(', ')}` : '',
+  ].filter(Boolean).join(' · ');
+}
+
+function renderThemes() {
+  const box = $('#themes');
+  box.textContent = '';
+  const fam = $('#filter').value;
+
+  let rows = S.ranked.length
+    ? S.ranked
+    : Object.entries(S.themes).map(([name, t]) => ({ name, theme: t, match: null }));
+  if (fam) rows = rows.filter(r => (r.theme || S.themes[r.name]).family === fam);
+
+  for (const r of rows) {
+    const t = r.theme || S.themes[r.name];
+    const b = el('button', 'mk-theme');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(r.name === S.theme));
+    b.dataset.theme = r.name;
+
+    const sw = el('div', 'mk-theme-sw');
+    for (const c of [t.bg, t.accent, t.accent2, t.fg]) {
+      const i = el('i');
+      i.style.background = c;
+      sw.append(i);
+    }
+    const meta = el('div', 'mk-theme-meta');
+    const nm = el('div', 'mk-theme-name');
+    nm.append(el('span', '', r.name));
+    if (r.match !== null) nm.append(el('span', 'mk-theme-match', r.match + '%'));
+    meta.append(nm, el('div', 'mk-theme-fam', `${t.family} · ${t.mood}`));
+    b.append(sw, meta);
+
+    b.addEventListener('click', () => {
+      S.theme = r.name;
+      for (const other of box.children) {
+        other.setAttribute('aria-pressed', String(other.dataset.theme === S.theme));
+      }
+      if (S.story) build();
+    });
+    box.append(b);
+  }
+}
+
+$('#filter').addEventListener('change', renderThemes);
+
+function renderMarks() {
+  const box = $('#marks');
+  box.textContent = '';
+  for (const s of S.spec.shots.slice(1)) {
+    const i = el('i');
+    i.style.left = `${(s.start / S.duration) * 100}%`;
+    i.dataset.t = s.start.toFixed(1);
+    box.append(i);
+  }
+}
+
+// ------------------------------------------------------------- downloads
+
+function save(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = el('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+const slug = () => (S.story?.repo || 'film').replace(/[^\w.-]+/g, '-').toLowerCase();
+
+function renderGet() {
+  $('#cmd').textContent =
+    `python3 -m cased ${S.story.url || S.story.full_name} `
+    + `--theme ${S.spec.theme_name} --director ${S.director} `
+    + `--duration ${S.duration} --quality high`;
+  // The standard shot list thins out past ~40s; creative mode reads the
+  // architecture and the history and writes enough beats to fill a minute.
+  $('#cmd-long').textContent =
+    `python3 -m cased ${S.story.url || S.story.full_name} `
+    + `--theme ${S.spec.theme_name} --creative --duration 60 --quality high`;
+
+  const box = $('#share');
+  box.textContent = '';
+  const sh = S.spec.share;
+  for (const [key, label] of [['x', 'X / Twitter'], ['linkedin', 'LinkedIn'],
+                              ['hn', 'Show HN'], ['product_hunt', 'Product Hunt'],
+                              ['alt_text', 'Alt text']]) {
+    if (!sh[key]) continue;
+    const b = el('button', '', '');
+    b.type = 'button';
+    b.append(el('span', '', label), el('b', '', 'copy'));
+    b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(sh[key]);
+        b.lastChild.textContent = 'copied';
+        setTimeout(() => { b.lastChild.textContent = 'copy'; }, 1600);
+      } catch {
+        b.lastChild.textContent = 'blocked';
+      }
+    });
+    box.append(b);
+  }
+}
+
+$('#dl-spec').addEventListener('click', () => {
+  save(new Blob([JSON.stringify(S.spec, null, 1)], { type: 'application/json' }),
+       `${slug()}-spec.json`);
+});
+
+$('#dl-wav').addEventListener('click', () => {
+  save(new Blob([wavBytes(S.bus)], { type: 'audio/wav' }), `${slug()}-score.wav`);
+});
+
+for (const [btn, src] of [['#copy-cmd', '#cmd'], ['#copy-long', '#cmd-long']]) {
+  $(btn).addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($(src).textContent);
+      $(btn).textContent = 'Copied';
+      setTimeout(() => { $(btn).textContent = 'Copy'; }, 1600);
+    } catch { $(btn).textContent = 'Blocked'; }
+  });
+}
+
+// --- recording --------------------------------------------------------
+//
+// The engine draws its text as DOM, not into the canvas, because that is what
+// keeps type crisp when the CLI screenshots each frame. A canvas captureStream
+// would therefore record the backgrounds and none of the words, so recording
+// here captures the tab itself. That costs resolution and runs in real time,
+// which is why the spec download next to it exists.
+
+const recNote = $('#rec-note');
+
+$('#dl-video').addEventListener('click', async () => {
+  const btn = $('#dl-video');
+  if (!navigator.mediaDevices?.getDisplayMedia || typeof MediaRecorder === 'undefined') {
+    recNote.textContent = 'This browser cannot record a tab. Use the spec and FFmpeg.';
+    return;
+  }
+
+  let display;
+  try {
+    display = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 30 },
+      audio: false,
+      preferCurrentTab: true,
+    });
+  } catch {
+    recNote.textContent = 'Screen capture was declined.';
+    return;
+  }
+
+  // Mix the real score in rather than recording whatever the speakers emit.
+  const tracks = [...display.getVideoTracks()];
+  let ctx = null;
+  try {
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SR });
+    const dest = ctx.createMediaStreamDestination();
+    const src = ctx.createBufferSource();
+    src.buffer = toAudioBuffer(ctx, S.bus);
+    src.connect(dest);
+    src.start();
+    tracks.push(...dest.stream.getAudioTracks());
+  } catch { /* video only */ }
+
+  const type = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+    .find(t => MediaRecorder.isTypeSupported(t)) || '';
+  const rec = new MediaRecorder(new MediaStream(tracks),
+                                type ? { mimeType: type, videoBitsPerSecond: 8e6 } : {});
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+  const done = new Promise(res => { rec.onstop = res; });
+  btn.classList.add('rec');
+  btn.disabled = true;
+  btn.textContent = 'Recording…';
+  recNote.textContent = 'Leave this tab in front until it finishes.';
+
+  rec.start(250);
+  seek(0);
+  play(0);
+
+  await new Promise(res => setTimeout(res, (S.duration + 0.4) * 1000));
+  stop();
+  rec.stop();
+  await done;
+  for (const t of tracks) t.stop();
+  if (ctx) { try { await ctx.close(); } catch { /* already closed */ } }
+
+  btn.classList.remove('rec');
+  btn.disabled = false;
+  btn.textContent = 'Record WebM';
+
+  const blob = new Blob(chunks, { type: type || 'video/webm' });
+  save(blob, `${slug()}-cased.webm`);
+  recNote.textContent = `Saved ${(blob.size / 1e6).toFixed(1)} MB. `
+    + 'For 1080p with exact frames, use the spec and FFmpeg.';
+});
+
+// Prefill from ?repo= so a link can carry the repository.
+const q = new URLSearchParams(location.search).get('repo');
+if (q) { $('#repo').value = q; }

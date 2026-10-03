@@ -15,6 +15,23 @@ import { PyRandom } from './random.js';
 /** Rows the `callout` shot draws. Must match the slice in stage.html. */
 export const CALLOUT_LINES = 13;
 
+/** Longest "what it is" card that still fits the engine's four-line box. */
+const CARD_CHARS = 76;
+
+/** Words that read badly as the last one before an ellipsis. */
+const TRAIL = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'for',
+  'on', 'with', 'by', 'from', 'into', 'as', 'that', 'which', 'its', 'it', 'this']);
+
+/** Trim to `limit`, on a word boundary, not ending on a dangling word. */
+function ellipsis(text, limit) {
+  if (text.length <= limit) return text;
+  const words = text.slice(0, limit).replace(/\s+\S*$/, '').split(/\s+/);
+  while (words.length > 3 && TRAIL.has(words[words.length - 1].replace(/[,;:]+$/, '').toLowerCase())) {
+    words.pop();
+  }
+  return words.join(' ').replace(/[,;:]+$/, '') + '...';
+}
+
 const MIN_SHOT = 1.15;   // below this a shot reads as a flicker
 const MAX_SHOT = 4.60;   // above this the eye wanders
 
@@ -215,11 +232,13 @@ export function buildPlan(story, dname, d, rng, duration) {
     if (second) second = second[0].toUpperCase() + second.slice(1);
   }
   if (second && second.length > 24) {
+    // A title card is read in two seconds, so this stays a line and not a
+    // paragraph. The budget used to be 108 characters at a pinned 92px, which
+    // overran the four-line box and clipped the sentence mid-phrase; the
+    // engine already sizes type to its length, so let it.
     add('title', {
       kicker: 'what it is',
-      text: second.length < 110 ? second
-        : second.slice(0, 108).replace(/\s+\S*$/, '') + '...',
-      size: second.length > 60 ? 92 : 118,
+      text: ellipsis(second, CARD_CHARS),
       perLine: 4,
       rule: false,
     }, 1.25);

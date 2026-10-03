@@ -478,3 +478,10 @@ footer { padding:70px var(--pad) 50px; border-top:1px solid var(--line-2); max-w
 }
 .sw .dots { position:absolute; top:9px; right:9px; z-index:2; display:flex; gap:4px; }
 .sw .dots i { width:9px; height:9px; border-radius:50%; display:block; box-shadow:0 0 0 1px rgba(0,0,0,.35); }
+
+/* --- the browser-first note under the hero buttons -------------------- */
+.hero-note {
+  margin-top: 14px;
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--faint);
+}
