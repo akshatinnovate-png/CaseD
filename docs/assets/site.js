@@ -348,6 +348,124 @@ function globe() {
 }
 
 /* =======================================================================
+   theme gallery
+   -----------------------------------------------------------------------
+   One live bed per theme, read from themes.json -- the same file the CLI
+   generates from cased/themes.py, so the site can never claim a theme the
+   tool does not have. Only the tiles on screen animate.
+   ======================================================================= */
+async function themeGallery() {
+  const grid = $('#theme-grid'), famRow = $('#fam-row');
+  if (!grid) return;
+  let themes;
+  try {
+    themes = await (await fetch('assets/themes.json')).json();
+  } catch {
+    grid.innerHTML = '<p class="sec-sub">Theme list unavailable offline.</p>';
+    return;
+  }
+
+  const entries = Object.entries(themes);
+  const fams = [...new Set(entries.map(([, t]) => t.family))];
+
+  // One WebGL context for all 54 tiles.
+  //
+  // A context per tile is the obvious approach and it does not work: browsers
+  // cap simultaneous WebGL contexts at around sixteen, so past that the oldest
+  // are silently lost and those tiles render blank white. Instead a single
+  // offscreen bed draws each visible theme in turn and the result is blitted
+  // into the tile's own 2D canvas. Still the renderer's real shader; one
+  // context instead of fifty-four.
+  const off = document.createElement('canvas');
+  off.style.cssText = 'position:fixed;left:-9999px;top:0;width:240px;height:150px;';
+  document.body.appendChild(off);
+  const bed = new CasedBed(off, { scale: 1, speed: 0.7, energy: 0.6 });
+  if (!bed.ok) {
+    grid.innerHTML = '<p class="sec-sub">This browser could not start WebGL, so the live theme previews are unavailable. The palettes are listed in the README.</p>';
+    return;
+  }
+
+  const tiles = entries.map(([name, t], i) => {
+    const card = document.createElement('article');
+    card.className = 'sw';
+    card.dataset.family = t.family;
+    card.title = `${name} — ${t.bg} ${t.accent} ${t.accent2}`;
+    card.innerHTML =
+      '<canvas aria-hidden="true"></canvas>' +
+      `<span class="dots"><i style="background:${t.accent}"></i>` +
+      `<i style="background:${t.accent2}"></i></span>` +
+      `<span class="nm">${name.replace(/_/g, ' ')}</span>`;
+    grid.appendChild(card);
+    const cv = card.querySelector('canvas');
+    const ctx = cv.getContext('2d');
+    const tile = { card, cv, ctx, t, i, seed: 3 + i * 7, hot: false, on: false };
+    card.addEventListener('mouseenter', () => { tile.hot = true; });
+    card.addEventListener('mouseleave', () => { tile.hot = false; });
+    return tile;
+  });
+
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    const tile = tiles.find(x => x.card === e.target);
+    if (tile) tile.on = e.isIntersecting;
+  }), { threshold: 0.02 });
+  tiles.forEach(t => io.observe(t.card));
+
+  const sizeTile = tile => {
+    const r = tile.cv.getBoundingClientRect();
+    const w = Math.max(2, Math.round(r.width * 0.5));
+    const h = Math.max(2, Math.round(r.height * 0.5));
+    if (tile.cv.width !== w || tile.cv.height !== h) { tile.cv.width = w; tile.cv.height = h; }
+  };
+
+  const t0 = performance.now();
+  const draw = (now) => {
+    requestAnimationFrame(draw);
+    const t = (now - t0) / 1000;
+    for (const tile of tiles) {
+      if (!tile.on || tile.card.style.display === 'none') continue;
+      sizeTile(tile);
+      if (off.width !== tile.cv.width || off.height !== tile.cv.height) {
+        off.width = tile.cv.width; off.height = tile.cv.height;
+      }
+      bed.set({ mode: tile.t.bg_mode, bg: tile.t.bg, a1: tile.t.accent,
+                a2: tile.t.accent2, seed: tile.seed,
+                energy: tile.hot ? 1.0 : 0.6, speed: tile.hot ? 1.4 : 0.7 });
+      bed.frame(t);
+      tile.ctx.drawImage(off, 0, 0);
+    }
+  };
+  if (!REDUCED) requestAnimationFrame(draw);
+  else tiles.forEach(tile => {                     // one static frame each
+    sizeTile(tile);
+    off.width = tile.cv.width; off.height = tile.cv.height;
+    bed.set({ mode: tile.t.bg_mode, bg: tile.t.bg, a1: tile.t.accent,
+              a2: tile.t.accent2, seed: tile.seed });
+    bed.frame(2.4);
+    tile.ctx.drawImage(off, 0, 0);
+  });
+
+  const mkChip = (label, value) => {
+    const b = document.createElement('button');
+    b.className = 'fam';
+    b.textContent = label;
+    b.setAttribute('aria-pressed', value === 'all' ? 'true' : 'false');
+    b.addEventListener('click', () => {
+      $$('.fam', famRow).forEach(x => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      tiles.forEach(tile => {
+        tile.card.style.display =
+          (value === 'all' || tile.card.dataset.family === value) ? '' : 'none';
+      });
+    });
+    famRow.appendChild(b);
+  };
+  mkChip(`all ${entries.length}`, 'all');
+  fams.forEach(f => mkChip(f, f));
+
+  reveals();
+}
+
+/* =======================================================================
    terminal demo
    ======================================================================= */
 const DEMO = [
@@ -466,6 +584,7 @@ function readouts() {
 function start() {
   hero();
   directors();
+  themeGallery();
   globe();
   demo();
   endCard();
