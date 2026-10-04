@@ -113,6 +113,11 @@ several points and checked before it is allowed into a film:
 | blank | drew nothing |
 | determinism | the same moment asked for twice gives a different frame |
 | static | never animates |
+| placeholder | printed `undefined`, `NaN` or `[object Object]` where a value belongs |
+
+Every check runs on built-in shots the model picked too, not just on code it
+wrote: it knows the shot names but not their data contracts, and a `langs`
+shot given items without a `share` will render quite happily.
 
 Anything that fails is dropped and the beat is redistributed. The engine frame
 is sandboxed to an opaque origin, so the page's Groq key and GitHub token are

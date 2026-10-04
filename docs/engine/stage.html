@@ -2295,9 +2295,12 @@ BUILD.langs = (d) => {
     const c = el('div');
     c.style.cssText = `display:flex;align-items:center;gap:${px(11)};font-size:${px(24)};font-weight:600;`;
     const dot = el('span');
-    dot.style.cssText = `width:${px(13)};height:${px(13)};border-radius:50%;background:${it.color};display:block;`;
+    dot.style.cssText =
+      `width:${px(13)};height:${px(13)};border-radius:50%;display:block;` +
+      `background:${it.color || 'var(--accent)'};`;
     const nm = el('span', '', esc(it.name));
-    const sh = el('span', 'mono', `${it.share}%`);
+    const sh = el('span', 'mono',
+      Number.isFinite(Number(it.share)) ? `${Number(it.share)}%` : '');
     sh.style.cssText = `color:var(--muted);font-size:${px(19)};`;
     c.append(dot, nm, sh);
     legend.appendChild(c);
@@ -2568,10 +2571,11 @@ BUILD.tree = (d) => {
     track.style.cssText = `flex:1;height:${px(13)};background:rgba(255,255,255,.08);border-radius:${px(7)};overflow:hidden;`;
     const bar = el('i');
     bar.style.cssText =
-      `display:block;height:100%;width:${Math.max(3, it.bar * 100)}%;` +
+      `display:block;height:100%;width:${Math.max(3, (Number(it.bar) || 0) * 100)}%;` +
       `background:linear-gradient(90deg, var(--accent), var(--accent2));transform-origin:left;`;
     track.appendChild(bar);
-    const num = el('span', '', `${it.loc.toLocaleString()}`);
+    const num = el('span', '',
+      Number.isFinite(Number(it.loc)) ? Number(it.loc).toLocaleString() : '');
     num.style.cssText = `flex:0 0 ${px(120)};text-align:right;color:var(--muted);font-size:${px(21)};`;
     row.append(name, track, num);
     box.appendChild(row);
@@ -6369,6 +6373,7 @@ function probe(times) {
       // a substituted title card, which is not the shot that was asked for.
       error: S.lastShotError || ((S.buildFallbacks || []).length ? S.buildFallbacks[0] : null),
       visible: a.visible,
+      placeholder: a.placeholder,
       // Same time asked twice must produce the same frame, or the capture --
       // which requests frames in whatever order it likes -- cannot be trusted.
       stable: a.sig === b.sig,
@@ -6378,11 +6383,16 @@ function probe(times) {
   return out;
 }
 
-/** Visible element count plus a cheap structural fingerprint. */
+/** Visible element count, a cheap structural fingerprint, and whether the
+ *  frame printed a placeholder where a value should have been. */
 function snapshot() {
   const dom = S.dom;
-  if (!dom) return { visible: 0, sig: '' };
+  if (!dom) return { visible: 0, sig: '', placeholder: null };
   let visible = 0, sig = '';
+  // "undefined", "NaN" or "[object Object]" on screen means a shot was handed
+  // data it did not understand. It draws happily, so only the text says so.
+  const text = dom.innerText || '';
+  const ph = text.match(/\b(undefined|NaN|\[object Object\])\b/);
   for (const e of dom.querySelectorAll('*')) {
     const r = e.getBoundingClientRect();
     if (r.width > 1 && r.height > 1) {
@@ -6394,7 +6404,7 @@ function snapshot() {
       }
     }
   }
-  return { visible, sig };
+  return { visible, sig, placeholder: ph ? ph[1] : null };
 }
 
 function registerShot(name, source) {

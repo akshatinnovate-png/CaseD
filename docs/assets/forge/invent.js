@@ -207,9 +207,11 @@ export async function drawShot(brief, key) {
  * `call` is the host's postMessage wrapper for the sandboxed engine frame.
  */
 export async function validateShot(call, { name, source, data, theme }) {
-  const reg = await call('register', { name, source }).then(
-    () => ({ ok: true }), e => ({ ok: false, error: e.message }));
-  if (!reg.ok) return { ok: false, stage: 'compile', error: reg.error };
+  if (source) {
+    const reg = await call('register', { name, source }).then(
+      () => ({ ok: true }), e => ({ ok: false, error: e.message }));
+    if (!reg.ok) return { ok: false, stage: 'compile', error: reg.error };
+  }
 
   const probeSpec = {
     version: '2.0', project: 'probe', fps: 30, width: 1920, height: 1080,
@@ -228,14 +230,24 @@ export async function validateShot(call, { name, source, data, theme }) {
   if (threw) return { ok: false, stage: 'render', error: threw.error };
   const drew = Math.max(...report.map(r => r.visible || 0));
   if (drew < 2) return { ok: false, stage: 'blank', error: 'drew nothing' };
+  // A shot handed a field it did not understand draws happily and prints the
+  // word. Only the text on screen says so.
+  const ph = report.find(r => r.placeholder);
+  if (ph) {
+    return { ok: false, stage: 'placeholder',
+             error: `printed "${ph.placeholder}" where a value should be` };
+  }
   const drift = report.find(r => r.stable === false);
   if (drift) {
     return { ok: false, stage: 'determinism',
              error: `frame at ${drift.t} differs when asked for twice` };
   }
-  // A shot whose frames never change is a still, not a shot.
-  const sigs = new Set(report.map(r => r.sig));
-  if (sigs.size < 2) return { ok: false, stage: 'static', error: 'never animates' };
+  // A shot whose frames never change is a still, not a shot. Only applied to
+  // generated code: a built-in that holds steady mid-shot is a design choice.
+  if (source) {
+    const sigs = new Set(report.map(r => r.sig));
+    if (sigs.size < 2) return { ok: false, stage: 'static', error: 'never animates' };
+  }
 
   return { ok: true, visible: drew };
 }
@@ -253,8 +265,19 @@ export async function invent({ story, insight, frontend, themeName, theme, shotT
   const rejected = [];
   for (const shot of plan.shots) {
     if (shot.use) {
-      if (shotTypes.includes(shot.use)) kept.push(shot);
-      else rejected.push({ name: shot.use, stage: 'unknown', error: 'no such shot type' });
+      if (!shotTypes.includes(shot.use)) {
+        rejected.push({ name: shot.use, stage: 'unknown', error: 'no such shot type' });
+        continue;
+      }
+      // The model chose a built-in but does not know its data contract, so the
+      // same probe applies: a `langs` shot with no `share` renders
+      // "undefined%" quite happily, and nothing else would catch it.
+      const verdict = await validateShot(call, { name: shot.use, data: shot.data, theme });
+      if (verdict.ok) kept.push(shot);
+      else {
+        rejected.push({ name: shot.use, ...verdict });
+        onStep?.(`${shot.use} rejected: ${verdict.stage} \u2014 ${verdict.error}`);
+      }
       continue;
     }
     if (!shot.invent) continue;
