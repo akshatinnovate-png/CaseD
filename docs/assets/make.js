@@ -14,6 +14,8 @@ import { parseRepo, analyzeRepo, getFile, RateLimited } from './forge/github.js'
 import { readFrontend, rankThemes } from './forge/palette.js';
 import { readCodeMoments } from './forge/code.js';
 import { inspect } from './forge/insight.js';
+import { invent } from './forge/invent.js';
+import { layOut, decorate, shareCopy } from './forge/compose.js';
 import { composeScore, wavBytes, toAudioBuffer, SR } from './forge/score.js';
 import { compose, pickDirector } from './forge/compose.js';
 import * as groq from './forge/groq.js';
@@ -29,7 +31,8 @@ const el = (tag, cls, text) => {
 const S = {
   themes: null, directors: null,
   story: null, frontend: null, ranked: [], insight: null, repo: null,
-  theme: null, director: null, duration: 24, creative: false,
+  theme: null, director: null, duration: 24, creative: false, invented: false,
+  inventedPlan: null,
   spec: null, bus: null, beatmap: null, copy: null,
   playing: false, raf: 0, startedAt: 0, startedFrom: 0,
   audioCtx: null, audioBuf: null, audioNode: null,
@@ -59,6 +62,12 @@ const dataReady = (async () => {
   ]);
   S.themes = themes;
   S.directors = directors;
+  // What the planner may reach for. Read from the engine rather than listed
+  // here, so the catalogue cannot drift from what actually renders.
+  try {
+    const src = await fetch('engine/stage.html').then(r => r.text());
+    S.shotTypes = [...src.matchAll(/^BUILD\.([a-zA-Z_][\w]*) =/gm)].map(m => m[1]);
+  } catch { S.shotTypes = ['title', 'stat', 'code', 'bullets', 'langs', 'endcard']; }
 
   const dsel = $('#director');
   dsel.append(el('option', '', 'Match the project'));
@@ -100,6 +109,9 @@ ghInput.addEventListener('change', () => {
     ? 'Saved in this browser only. Creative mode can now read much more.'
     : 'Without a token GitHub allows 60 requests an hour, shared by everything here.';
   budgetNote();
+$('#invented-hint').textContent = S.invented
+  ? 'Each run designs its own shots, so two runs of the same repo differ.'
+  : 'Off: shots come from the built-in library.';
 });
 
 // ---------------------------------------------------------------- the key
@@ -244,6 +256,10 @@ async function run(repo) {
   }
 
   if (S.creative) await deepRead();
+  if (S.invented && !await inventFilm()) {
+    S.invented = false;
+    $('#invented').setAttribute('aria-pressed', 'false');
+  }
 
   await build();
   show('#step-film');
@@ -291,6 +307,23 @@ async function build() {
   S.beatmap = beatmap;
 
   wait.textContent = 'cutting…';
+
+  // An invented film is cut by the same layout as any other, so it is still
+  // edited to the music; only where the shots came from differs.
+  if (S.invented && S.inventedPlan?.kept?.length >= 3) {
+    S.spec = cutInvented(story, beatmap, dname, themeSpecFor(dname));
+    S.director = dname;
+    $('#film-sub').textContent =
+      `${S.spec.shots.length} shots over ${S.duration}s, cut to ${beatmap.bpm} BPM. `
+      + `${S.spec.invented_count} written for this repo, ${S.spec.theme_name} palette.`;
+    await loadStage();
+    renderMarks();
+    renderGet();
+    fitStage();
+    wait.hidden = true;
+    return;
+  }
+
   S.spec = compose(story, beatmap, {
     duration: S.duration, director: dname, theme: S.theme,
     seed, themes: S.themes, directors: S.directors, insight,
@@ -484,6 +517,28 @@ function budgetNote() {
   $('#dur-hint').textContent = !S.creative && dur >= CREATIVE_FROM ? bits[0] || '' : '';
 }
 
+$('#invented').addEventListener('click', async () => {
+  S.invented = !S.invented;
+  $('#invented').setAttribute('aria-pressed', String(S.invented));
+  S.inventedPlan = null;
+  const hint = $('#invented-hint');
+  hint.className = 'mk-hint';
+  if (S.invented && !groq.getKey()) {
+    hint.textContent = 'Add a Groq key above \u2014 this is the one thing that needs it.';
+    hint.classList.add('bad');
+  } else {
+    hint.textContent = S.invented
+      ? 'Each run designs its own shots, so two runs of the same repo differ.'
+      : 'Off: shots come from the built-in library.';
+  }
+  if (!S.story) return;
+  if (S.invented && !await inventFilm()) {
+    S.invented = false;
+    $('#invented').setAttribute('aria-pressed', 'false');
+  }
+  build();
+});
+
 $('#creative').addEventListener('click', async () => {
   S.creative = !S.creative;
   $('#creative').setAttribute('aria-pressed', String(S.creative));
@@ -532,6 +587,60 @@ $('#duration').addEventListener('input', () => {
 });
 $('#director').addEventListener('change', () => { if (S.story) build(); });
 
+/**
+ * Have the model design the graphics.
+ *
+ * The plan it returns is cut to the beat by the same layout the built-in
+ * directors use, so an invented film is still edited to the music. Shots that
+ * failed validation are simply absent; the beat they would have taken is
+ * redistributed across the ones that survived.
+ */
+async function inventFilm() {
+  const key = groq.getKey();
+  if (!key) { log('invented graphics need a Groq key', 'err'); return false; }
+
+  // Validation measures what a shot actually drew, and an element inside a
+  // display:none subtree measures 0x0 -- so a perfectly good shot reads as
+  // blank if the step is still hidden. Reveal the stage before probing it.
+  show('#step-film');
+  fitStage();
+
+  const wait = $('#screen-wait');
+  wait.hidden = false;
+  wait.textContent = 'designing the graphics\u2026';
+
+  const theme = S.themes[S.theme] || S.themes[S.directors.cinematic.theme];
+  const themeSpec = {
+    bg: theme.bg, fg: theme.fg, accent: theme.accent, accent2: theme.accent2,
+    grain: theme.grain, scanlines: theme.scanlines, vignette: theme.vignette,
+    letterbox: theme.letterbox, bg_mode: theme.bg_mode, face: theme.face,
+  };
+
+  await whenStageReady();
+  try {
+    const r = await invent({
+      story: S.story, insight: S.insight, frontend: S.frontend,
+      themeName: S.theme, theme: themeSpec, shotTypes: S.shotTypes,
+      duration: S.duration, call: stageCall,
+    }, key, m => log(m));
+    S.inventedPlan = r;
+    if (r.look) log(`look: ${r.look}`, 'done');
+    const made = r.kept.filter(x => x.invent).length;
+    log(`${r.kept.length} shots, ${made} of them newly written`, 'done');
+    if (r.rejected.length) {
+      log(`${r.rejected.length} dropped: `
+        + r.rejected.map(x => `${x.name} (${x.stage})`).join(', '), 'err');
+    }
+    if (r.dropped.length) {
+      log(`${r.dropped.length} line(s) dropped for quoting a number nobody measured`, 'err');
+    }
+    return r.kept.length >= 3;
+  } catch (e) {
+    log(`inventing failed: ${e.message}`, 'err');
+    return false;
+  }
+}
+
 /** The deep read, on demand — it costs requests, so only when asked for. */
 async function deepRead() {
   const wait = $('#screen-wait');
@@ -550,6 +659,55 @@ async function deepRead() {
   if (i.techniques.length) {
     log(`techniques: ${i.techniques.map(t => t.name).join(', ')}`, 'done');
   }
+}
+
+/** The theme spec the engine reads, for a given director. */
+function themeSpecFor(dname) {
+  const t = S.themes[S.theme] || S.themes[S.directors[dname].theme];
+  return {
+    bg: t.bg, fg: t.fg, accent: t.accent, accent2: t.accent2,
+    grain: t.grain, scanlines: t.scanlines, vignette: t.vignette,
+    letterbox: t.letterbox, bg_mode: t.bg_mode, face: t.face,
+  };
+}
+
+/** Turn the invented plan into a spec, beat-snapped like any other film. */
+function cutInvented(story, beatmap, dname, themeSpec) {
+  const d = S.directors[dname];
+  const MARKUP_AWARE = /^(app|gen)/;
+  const strip = (v) => typeof v === 'string' ? v.replace(/\*([^*]+)\*/g, '$1') : v;
+  const plan = S.inventedPlan.kept.map((shot, i) => {
+    const type = shot.invent || shot.use;
+    let data = shot.data || {};
+    if (!MARKUP_AWARE.test(type)) {
+      data = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, strip(v)]));
+    }
+    return {
+    type,
+    data,
+    weight: Math.max(0.6, Math.min(1.9, Number(shot.weight) || 1)),
+    hard: i > 0 && (i % 3 === 0),
+    ...(shot.caption ? { caption: strip(shot.caption) } : {}),
+  };
+  });
+  decorate(plan, d, themeSpec);
+  const shots = layOut(plan, S.duration, beatmap);
+  const bm = {};
+  for (const [k, v] of Object.entries(beatmap)) if (k !== 'beats') bm[k] = v;
+  return {
+    version: '2.0', project: story.name, director: dname, director_label: d.label,
+    mode: 'invented',
+    // The source of every shot the model wrote travels with the spec, so the
+    // CLI can render the same film the browser previewed.
+    generated: S.inventedPlan.kept.filter(s => s.source)
+      .map(s => ({ name: s.invent, source: s.source })),
+    invented_count: S.inventedPlan.kept.filter(s => s.invent).length,
+    look: S.inventedPlan.look || '',
+    seed: story.seed || 1, fps: 30, width: 1920, height: 1080,
+    duration: Math.round(S.duration * 1e4) / 1e4,
+    theme: themeSpec, theme_name: S.theme || d.theme,
+    shots, beatmap: bm, share: shareCopy(story, d.label),
+  };
 }
 
 // --------------------------------------------------------------- renderers
@@ -859,6 +1017,10 @@ $('#dl-video').addEventListener('click', async () => {
 const q = new URLSearchParams(location.search);
 if (q.get('repo')) $('#repo').value = q.get('repo');
 if (q.get('duration')) setDuration(Number(q.get('duration')) || 24);
+if (q.get('invent') === '1') {
+  S.invented = true;
+  $('#invented').setAttribute('aria-pressed', 'true');
+}
 if (q.get('creative') === '1') {
   S.creative = true;
   $('#creative').setAttribute('aria-pressed', 'true');

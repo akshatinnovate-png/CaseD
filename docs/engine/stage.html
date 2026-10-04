@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Shot code written by a model is compiled in this document. It has nothing
+     worth stealing -- the frame is sandboxed to an opaque origin, so no
+     localStorage, no parent DOM -- and connect-src 'none' means it cannot send
+     anywhere either. 'unsafe-eval' is what compiles a generated builder. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <title>cased2.0 stage</title>
 <style>
   /* ---------------------------------------------------------------------
@@ -5975,7 +5980,15 @@ function build() {
     const fn = BUILD[shot.type] || BUILD.title;
     let inst;
     try { inst = fn(shot.data || {}); }
-    catch (e) { console.warn('shot build failed', shot.type, e); inst = BUILD.title({ text: shot.type }); }
+    catch (e) {
+      // Falling back keeps the film running, but it also makes a broken shot
+      // look like a working one -- the substituted title card paints elements
+      // and probes clean. Record it so a probe can tell them apart.
+      console.warn('shot build failed', shot.type, e);
+      S.buildFallbacks = (S.buildFallbacks || []);
+      S.buildFallbacks.push(shot.type + ': ' + (e && e.message || e));
+      inst = BUILD.title({ text: shot.type });
+    }
     inst.node.style.opacity = '0';
     inst.shot = shot;
     dom.appendChild(inst.node);
@@ -6037,7 +6050,11 @@ function seek(t) {
       `rotate(${(st.rot + cam.r).toFixed(3)}deg)`;
     inst.node.style.filter = st.blur > 0.05 ? `blur(${st.blur.toFixed(2)}px)` : '';
     inst.node.style.clipPath = st.clip || '';
-    try { inst.update(lt, p); } catch (e) { /* a bad shot must not kill the film */ }
+    // A bad shot must not kill the film, but swallowing the error silently
+    // makes a generated one look like it worked. Keep the last failure so a
+    // probe can report it.
+    try { inst.update(lt, p); }
+    catch (e) { S.lastShotError = (shot && shot.type || '?') + ': ' + (e && e.message || e); }
   }
 
   // --- post -----------------------------------------------------------
@@ -6101,6 +6118,7 @@ async function load(spec) {
   // than a light one. This must be set before build(), which constructs the
   // shots -- setting it later leaves every panel dark on a cream theme, with
   // near-black body text on it.
+  S.buildFallbacks = [];
   S.light = relLum(th.bg) > 0.45;
   S.serif = th.face === 'serif';
   stage.classList.toggle('serifset', S.serif);
@@ -6146,7 +6164,7 @@ function grainURI(seed) {
 }
 
 window.__CASED = {
-  load, seek,
+  load, seek, register: registerShot,
   get duration() { return S.spec ? S.spec.duration : 0; },
   get size() { return [S.W, S.H]; },
 };
@@ -6165,6 +6183,142 @@ window.__CASED = {
    {id, ok, value} or {id, ok:false, error}, and the frame announces
    itself once it is ready so the host does not have to poll.
    ======================================================================= */
+/* --- generated shots ---------------------------------------------------
+ *
+ * A model can write a builder and have it rendered here. The contract is
+ * narrow on purpose: a builder is an expression evaluating to
+ * (d, api) => ({ node, update(lt) }), it may touch only the helpers handed
+ * to it in `api`, and -- the rule the whole renderer rests on -- its output
+ * must be a pure function of lt. The frame-stepped capture asks for frames
+ * in whatever order it likes, so a builder that reads the clock or draws a
+ * random number produces a different film every time it is rendered.
+ *
+ * Nothing here trusts the source. It is compiled, then rendered, then
+ * checked; the caller decides what to do when a check fails.
+ */
+/**
+ * Identifiers a generated builder must not reach. They are shadowed as
+ * parameters bound to undefined rather than grepped for, because a word list
+ * cannot tell `top` the global from `top:50%` in a style string -- the first
+ * version of this rejected a perfectly good shot for writing CSS.
+ *
+ * Security does not rest on this. The frame is sandboxed to an opaque origin,
+ * so there is nothing here worth taking, and its CSP sets connect-src 'none',
+ * so there is nowhere to send it. This is here to stop accidents.
+ */
+const SHADOWED = [
+  'window', 'parent', 'top', 'self', 'globalThis', 'document', 'location',
+  'history', 'navigator', 'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource',
+  'localStorage', 'sessionStorage', 'indexedDB', 'caches', 'Worker',
+  'postMessage', 'Function', 'Date', 'performance',
+  'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback',
+  'setTimeout', 'setInterval', 'queueMicrotask', 'crypto',
+];
+
+/**
+ * Determinism cannot be shadowed away -- Math is needed and Math.random sits
+ * on it -- so the one entropy source gets a pattern. Every visual in this
+ * engine is a pure function of seek(t); a builder that draws a random number
+ * renders a different film each time the capture asks for a frame.
+ */
+const NON_DETERMINISTIC = /Math\s*\.\s*random/;
+
+/** `eval` cannot be shadowed -- it is not a legal parameter name under strict
+ *  mode -- so it is the one identifier still matched by pattern. */
+const DIRECT_EVAL = /\beval\s*\(/;
+
+/** The only surface a generated builder gets. */
+function shotAPI() {
+  return {
+    el, px, esc, seg, clamp, lerp, rng, E,
+    // A read-only view of the frame: size, orientation, ground, palette.
+    stage: {
+      W: S.W, H: S.H, vertical: S.vertical, light: S.light, serif: S.serif,
+      theme: Object.freeze({ ...S.theme }),
+    },
+  };
+}
+
+/**
+ * Render at a few points and report what actually happened.
+ *
+ * seek() deliberately swallows a shot's errors so one bad layer cannot kill a
+ * film, which means a generated shot that throws on every frame looks exactly
+ * like one that works. This reports the swallowed error, how much got drawn,
+ * and a signature of the drawn DOM -- enough for the host to tell a working
+ * shot from a blank one, and a deterministic shot from one that drifts.
+ */
+function probe(times) {
+  const out = [];
+  for (const t of times) {
+    S.lastShotError = null;
+    let a, b;
+    try { seek(t); a = snapshot(); seek(t); b = snapshot(); }
+    catch (e) { out.push({ t, error: String(e && e.message || e), visible: 0 }); continue; }
+    out.push({
+      t,
+      // A build failure is reported as an error too: the film kept running on
+      // a substituted title card, which is not the shot that was asked for.
+      error: S.lastShotError || ((S.buildFallbacks || []).length ? S.buildFallbacks[0] : null),
+      visible: a.visible,
+      // Same time asked twice must produce the same frame, or the capture --
+      // which requests frames in whatever order it likes -- cannot be trusted.
+      stable: a.sig === b.sig,
+      sig: a.sig,
+    });
+  }
+  return out;
+}
+
+/** Visible element count plus a cheap structural fingerprint. */
+function snapshot() {
+  const dom = S.dom;
+  if (!dom) return { visible: 0, sig: '' };
+  let visible = 0, sig = '';
+  for (const e of dom.querySelectorAll('*')) {
+    const r = e.getBoundingClientRect();
+    if (r.width > 1 && r.height > 1) {
+      visible++;
+      if (sig.length < 4000) {
+        sig += e.tagName + Math.round(r.x) + ',' + Math.round(r.y) + ',' +
+               Math.round(r.width) + ',' + Math.round(r.height) +
+               '|' + (e.style.opacity || '') + (e.style.transform || '') + ';';
+      }
+    }
+  }
+  return { visible, sig };
+}
+
+function registerShot(name, source) {
+  if (!/^gen[A-Za-z0-9_]{1,40}$/.test(String(name || ''))) {
+    return { ok: false, error: 'a generated shot must be named genSomething' };
+  }
+  const src = String(source || '');
+  if (src.length > 20000) return { ok: false, error: 'source too long' };
+  if (NON_DETERMINISTIC.test(src)) {
+    return { ok: false, error: 'uses Math.random; every visual must be a pure function of lt' };
+  }
+  if (DIRECT_EVAL.test(src)) return { ok: false, error: 'uses eval' };
+  let factory;
+  try {
+    const body = '"use strict"; return (' + src + ');';
+    factory = new Function(...SHADOWED, 'api', body)(...SHADOWED.map(() => undefined), shotAPI());
+  } catch (e) {
+    return { ok: false, error: 'did not compile: ' + (e && e.message) };
+  }
+  if (typeof factory !== 'function') return { ok: false, error: 'did not evaluate to a function' };
+  BUILD[name] = (d) => {
+    const made = factory(d, shotAPI());
+    if (!made || !made.node || typeof made.update !== 'function') {
+      throw new Error(name + ' returned no { node, update }');
+    }
+    return made;
+  };
+  // Registering means it compiled. Whether it draws anything, and whether it
+  // draws the same thing twice, is settled by rendering it.
+  return { ok: true, value: name };
+}
+
 addEventListener('message', async (ev) => {
   const msg = ev.data;
   if (!msg || msg.channel !== 'cased') return;
@@ -6176,6 +6330,8 @@ addEventListener('message', async (ev) => {
   };
   try {
     switch (msg.call) {
+      case 'register': return reply(registerShot(msg.name, msg.source));
+      case 'probe':    return reply({ ok: true, value: probe(msg.times || [0.3, 0.6, 0.9]) });
       case 'load':     await load(msg.spec); return reply({ ok: true, value: S.spec.duration });
       case 'seek':     seek(msg.t);          return reply({ ok: true });
       case 'duration': return reply({ ok: true, value: S.spec ? S.spec.duration : 0 });

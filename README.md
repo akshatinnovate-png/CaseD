@@ -97,6 +97,34 @@ Runtime is a free number — type 90, or 150, or use the presets. Every beat is
 conditional on evidence: a repo with no import graph gets no architecture shot
 rather than an empty one.
 
+### Invented graphics
+
+A button on the page. Instead of picking from the library, gpt-oss-120b
+designs shots for *your* repository and writes the code for them, so the same
+project filmed twice can genuinely differ.
+
+Nothing it writes is trusted. Every generated shot is compiled, rendered at
+several points and checked before it is allowed into a film:
+
+| check | what fails it |
+|---|---|
+| compile | will not parse, or uses `Math.random` or `eval` |
+| render | throws — the globals it reached for are `undefined` |
+| blank | drew nothing |
+| determinism | the same moment asked for twice gives a different frame |
+| static | never animates |
+
+Anything that fails is dropped and the beat is redistributed. The engine frame
+is sandboxed to an opaque origin, so the page's Groq key and GitHub token are
+unreachable from it, and its CSP sets `connect-src 'none'`, so generated code
+has nowhere to send anything. The model writes compositions, never facts: its
+copy goes through the same guard that drops a line quoting a number nobody
+measured.
+
+The source of every shot it wrote travels inside `spec.json`, and the renderer
+registers them before loading, so `python3 -m cased` reproduces the film the
+browser previewed.
+
 Add a **GitHub token** beside the Groq key if you want creative mode to read
 deeply. Unauthenticated, GitHub allows 60 requests an hour and the page reads
 14 source files; with a token that is 5,000 an hour and 60 files, and the

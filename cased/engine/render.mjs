@@ -120,6 +120,16 @@ async function main() {
   page.on('pageerror', e => log('  ! page error:', e.message));
 
   await page.goto(pathToFileURL(join(HERE, 'stage.html')).href, { waitUntil: 'load' });
+  // A spec from the invented path carries the source of the shots the model
+  // wrote. Register them before loading, or the film renders title cards where
+  // those beats should be. Each goes through the engine's own checks.
+  for (const g of spec.generated || []) {
+    const r = await page.evaluate(
+      ([n, src]) => window.__CASED.register(n, src), [g.name, g.source]);
+    if (!r || !r.ok) {
+      throw new Error(`generated shot ${g.name} was rejected: ${r && r.error}`);
+    }
+  }
   await page.evaluate(s => window.__CASED.load(s), spec);
   // One warm-up seek so shader compilation and font metrics settle before
   // frame 0 is captured.
