@@ -352,6 +352,19 @@ Two deliberate departures, both forced by the medium:
 
 ## The directors
 
+**Atlas** is the product one, and the only director that reaches for the
+product-UI shots and turns the frame furniture on:
+
+```bash
+python3 -m cased . --director atlas
+```
+
+It draws the repository as a product rather than as data — the files scattered
+as windows, the top-level directories in orbit, recent commits on a board, real
+source in an editor, the language split on a dashboard — with chapter marks and
+a caption on each beat. Nothing in it is invented, so the stamp reads MEASURED
+throughout.
+
 A director is a complete point of view: palette, background bed, pacing,
 transition vocabulary, and the musical mood underneath. Same repo, six films.
 

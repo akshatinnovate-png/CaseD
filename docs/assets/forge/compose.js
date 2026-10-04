@@ -498,6 +498,140 @@ export function buildCreativePlan(story, ins, dname, d, rng, duration) {
   return plan;
 }
 
+
+/**
+ * A product film.
+ *
+ * The other plans draw data about the repository. This one draws the
+ * repository as a product: the files scattered as windows, the top-level
+ * directories in orbit, recent work on a board, real source in an editor, the
+ * language split on a dashboard.
+ *
+ * Nothing here is invented, so the frame stamp reads MEASURED throughout. The
+ * shots can draw fabricated screens — that is what `sample` is for — but a
+ * film about a real repository has no reason to.
+ */
+export function buildAtlasPlan(story, ins, d, duration) {
+  const name = story.name;
+  const stats = story.stats || {};
+  const langs = story.languages || [];
+  const plan = [];
+  let chapter = 0;
+  const add = (type, data, weight, section = '', caption = '', hard = false, chap = '') => {
+    chapter++;
+    const shot = { type, data, weight, hard };
+    if (section) shot.section = section;
+    if (caption) shot.caption = caption;
+    if (chap) shot.chapter = `${String(chapter).padStart(2, '0')} \u00b7 ${chap}`;
+    plan.push(shot);
+  };
+
+  const files = stats.files || 0;
+  const commits = stats.commits || stats.commits_seen || 0;
+
+  // 1 -- the scatter, then the name for it
+  add('appwindows', {
+    text: files ? `${plural(files, 'file')}. One *repository*.` : `${name}, *in one place*.`,
+    count: Math.max(6, Math.min(files || 9, 13)), seed: story.seed || 7,
+  }, 1.15, 'the shape', (story.tagline || '').slice(0, 72), false, 'what it is');
+
+  // 2 -- the top-level directories, in orbit
+  const tree = (ins && ins.tree) || story.tree || [];
+  let mods = tree.map(t => t.path).filter(p => p && p !== '(root)').slice(0, 8);
+  if (mods.length < 3) {
+    const seen = [];
+    for (const m of story.code_moments || []) {
+      const top = m.path.includes('/') ? m.path.split('/')[0] : '(root)';
+      if (!seen.includes(top)) seen.push(top);
+    }
+    mods = seen.slice(0, 8);
+  }
+  if (mods.length >= 3) {
+    add('apporbit', {
+      title: 'Everything it is made of.',
+      mark: name.slice(0, 2).toUpperCase(),
+      items: mods.map(m => ({ name: m })),
+    }, 1.45, 'orbit view',
+      `${mods.length} top-level ${mods.length === 1 ? 'directory' : 'directories'}`,
+      false, 'layout');
+  }
+
+  // 3 -- recent work, as a board
+  const tl = story.timeline || [];
+  if (tl.length >= 3) {
+    const cards = tl.slice(-6).map(t => ({ text: ellipsis(t.text, 46) }));
+    const third = Math.max(1, Math.floor(cards.length / 3));
+    add('appboard', {
+      app: story.full_name || story.repo || name,
+      title: 'The work, *on one board*.',
+      sprint: commits ? plural(commits, 'commit') : 'recent work',
+      columns: [
+        { name: 'earlier', cards: cards.slice(0, third) },
+        { name: 'then', cards: cards.slice(third, third * 2) },
+        { name: 'latest', cards: cards.slice(third * 2) },
+      ],
+    }, 1.4, 'history', 'Every card is a real commit.', true, 'history');
+  }
+
+  // 4 -- real source, in an editor
+  const moments = story.code_moments || [];
+  if (moments.length) {
+    const m = moments[0];
+    const files2 = [];
+    for (const other of moments) if (!files2.includes(other.path)) files2.push(other.path);
+    if (stats.hottest_file && !files2.includes(stats.hottest_file)) files2.push(stats.hottest_file);
+    add('appcode', {
+      app: story.full_name || story.repo || name,
+      title: 'Written *here*.',
+      root: m.path.split('/')[0],
+      branch: story.branch || stats.branch || 'main',
+      action: 'Run',
+      tab: m.path.split('/').pop(),
+      files: files2.slice(0, 7).map(f => ({
+        name: f.split('/').pop(), depth: (f.match(/\//g) || []).length, active: f === m.path,
+      })),
+      code: (m.code || []).slice(0, 9),
+    }, 1.6, 'source', m.caption || 'Real source, not a mockup.', false, 'the code');
+  }
+
+  // 5 -- the stack, on a dashboard
+  if (langs.length >= 2) {
+    const hero = langs[0];
+    add('appdash', {
+      app: story.full_name || story.repo || name,
+      title: 'The stack, *measured*.',
+      value: `${hero.share}%`, delta: hero.name,
+      label: 'share of the codebase',
+      series: langs.slice(0, 8).map(l => l.share).reverse(),
+      cards: langs.slice(1, 4).map(l => ({ label: l.name, value: `${l.share}%` })),
+    }, 1.35, 'stack', `${langs.length} languages, measured from the tree.`, true, 'stack');
+  }
+
+  // 6 -- what it does, in the author's words
+  const feats = story.features || [];
+  if (feats.length >= 2) {
+    add('bullets', { title: 'what it does', items: feats.slice(0, 5) },
+        1.3, 'capability', 'Straight from the README.', false, 'what it does');
+  }
+
+  // 7 -- the two audiences, if the deep read found techniques
+  if (duration >= 45 && ins && (ins.techniques || []).length) {
+    add('appsplit', {
+      left: { kicker: 'in the source', text: 'What it *actually does*.',
+              items: ins.techniques.slice(0, 3).map(t => t.name) },
+      right: { kicker: 'in the repo', text: 'What it is *made of*.',
+               items: langs.slice(0, 3).map(l => `${l.name} ${l.share}%`) },
+    }, 1.25, 'two sides', 'Found by reading the code.', true, 'technique');
+  }
+
+  // 8 -- the card people screenshot
+  add('endcard', {
+    name, sub: story.url || story.repo || '', cta: 'made with cased2.0',
+  }, 1.0, 'end', '', true);
+
+  return plan;
+}
+
 // ---------------------------------------------------------------- decorate
 
 /** Attach the director's look to each shot: bed, camera, entrance, fx. */
@@ -594,10 +728,13 @@ export function compose(story, beatmap, {
   const d = directors[dname];
   const rng = new PyRandom(seed || story.seed || 1);
 
-  // Passing an insight report switches the film to the long-form arc.
-  const plan = insight
-    ? buildCreativePlan(story, insight, dname, d, rng, duration)
-    : buildPlan(story, dname, d, rng, duration);
+  // The atlas director draws the repository as a product; passing an insight
+  // report switches any other director to the long-form arc.
+  const plan = d.hud
+    ? buildAtlasPlan(story, insight, d, duration)
+    : insight
+      ? buildCreativePlan(story, insight, dname, d, rng, duration)
+      : buildPlan(story, dname, d, rng, duration);
 
   // The director names a default theme; an explicit theme overrides it. Look
   // and pacing are independent axes, so any theme composes with any director.
@@ -633,6 +770,9 @@ export function compose(story, beatmap, {
     duration: round4(duration),
     theme: themeSpec,
     theme_name: themeName,
+    // The frame furniture rides on the director, not the theme.
+    hud: !!d.hud,
+    hud_label: String(story.name).toUpperCase().slice(0, 18),
     shots,
     beatmap: bm,
     share: shareCopy(story, d.label),

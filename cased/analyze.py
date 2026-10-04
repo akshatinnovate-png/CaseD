@@ -101,6 +101,7 @@ class Story:
     stats: dict = field(default_factory=dict)
     highlights: list = field(default_factory=list)
     code_moments: list = field(default_factory=list)
+    tree: list = field(default_factory=list)       # top-level dirs, by file count
     features: list = field(default_factory=list)
     commands: list = field(default_factory=list)
     timeline: list = field(default_factory=list)
@@ -444,6 +445,10 @@ def survey_sources(root: Path, story: Story) -> list:
         test_files=test_files,
         directories=len([d for d in dirs if d != "."]),
     )
+    story.tree = [
+        {"path": d, "files": n, "bar": round(n / max(dirs.values()), 3)}
+        for d, n in dirs.most_common(12) if d != "."
+    ]
 
     ranked = [
         {"name": lang, "loc": loc, "files": files_by_lang[lang],

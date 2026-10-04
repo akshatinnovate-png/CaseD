@@ -43,6 +43,10 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 
 def main(argv) -> int:
     fast = "--fast" in argv
+    import re as _re0
+    ENGINE_BUILDERS = set(_re0.findall(
+        r"^BUILD\.([a-zA-Z_][\w]*) =",
+        (ROOT / "cased" / "engine" / "stage.html").read_text(encoding="utf-8"), _re0.M))
     tmp = Path(tempfile.mkdtemp(prefix="cased-selftest-"))
     print(f"\ncased2.0 self-test  ({'fast' if fast else 'full'})\n")
 
@@ -100,9 +104,13 @@ def main(argv) -> int:
         check(f"{dname}: fills the runtime", covers)
         check(f"{dname}: no flicker shots", not short)
         check(f"{dname}: starts at zero", shots[0]["start"] == 0.0)
-        check(f"{dname}: every shot has a builder",
-              all(s["type"] in {"title","stat","code","bullets","langs","timeline",
-                                "globe","retro","endcard"} for s in shots))
+        # Read the builders out of the engine rather than listing them here.
+        # The hardcoded set went stale the moment a director reached for a
+        # shot type outside it, and then reported a missing builder for a
+        # shot the engine draws perfectly well.
+        missing_builders = sorted({s["type"] for s in shots} - ENGINE_BUILDERS)
+        check(f"{dname}: every shot has a builder", not missing_builders,
+              str(missing_builders))
 
     spec = compose(story, bm, 24.0, "cinematic", 1920, 1080, 4242)
     beats = set(bm["beats"]) | {a["time"] for a in bm["accents"]}

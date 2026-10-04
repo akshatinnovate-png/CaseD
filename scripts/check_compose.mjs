@@ -28,6 +28,10 @@ const CASES = [
   // this case is about the composer agreeing on the arc it builds.)
   { duration: 60, director: null, theme: null, seed: 7, creative: true },
   { duration: 90, director: 'creative', theme: 'ember', seed: 4, creative: true },
+  // The atlas director draws the repo as a product and turns the frame
+  // furniture on, so it exercises a different plan builder entirely.
+  { duration: 34, director: 'atlas', theme: null, seed: 7 },
+  { duration: 60, director: 'atlas', theme: 'inkwell', seed: 3, creative: true },
   { duration: 24, director: null, theme: null, seed: 7 },
   { duration: 24, director: 'brutalist', theme: 'hotpink', seed: 7 },
   { duration: 60, director: 'cinematic', theme: 'daylight', seed: 3 },
@@ -68,7 +72,8 @@ print(json.dumps({"story": story, "spec": spec, "insight": insight}))
   const bad = [];
 
   for (const k of ['project', 'director', 'director_label', 'mode', 'seed',
-                   'fps', 'width', 'height', 'duration', 'theme_name']) {
+                   'fps', 'width', 'height', 'duration', 'theme_name',
+                   'hud', 'hud_label']) {
     if (JSON.stringify(want[k]) !== JSON.stringify(got[k])) {
       bad.push(`${k}: py ${JSON.stringify(want[k])} vs js ${JSON.stringify(got[k])}`);
     }
@@ -87,7 +92,8 @@ print(json.dumps({"story": story, "spec": spec, "insight": insight}))
   } else {
     for (let i = 0; i < want.shots.length; i++) {
       const a = want.shots[i], b = got.shots[i];
-      for (const k of ['type', 'start', 'dur', 'bg', 'cam', 'in', 'energy']) {
+      for (const k of ['type', 'start', 'dur', 'bg', 'cam', 'in', 'energy',
+                       'section', 'chapter', 'caption', 'sample']) {
         if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) {
           bad.push(`shot[${i}].${k}: py ${JSON.stringify(a[k])} vs js ${JSON.stringify(b[k])}`);
         }

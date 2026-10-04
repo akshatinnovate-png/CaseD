@@ -1,4 +1,34 @@
 {
+ "atlas": {
+  "label": "Atlas",
+  "blurb": "Product UI on paper, serif headlines, chapter marks and captions.",
+  "mood": "cinematic",
+  "theme": "atlas",
+  "beds": [
+   "contours",
+   "topo",
+   "contours",
+   "paper"
+  ],
+  "cams": [
+   "none",
+   "push",
+   "none",
+   "none"
+  ],
+  "ins": [
+   "fade",
+   "rise",
+   "fade",
+   "wipe",
+   "fade"
+  ],
+  "pace": 1.05,
+  "energy": 0.22,
+  "intensity": 0.8,
+  "fx": [],
+  "hud": true
+ },
  "cinematic": {
   "label": "Cinematic",
   "blurb": "Deep blacks, slow pushes, letterbox. Takes the work seriously.",

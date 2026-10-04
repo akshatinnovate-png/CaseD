@@ -518,23 +518,34 @@ function budgetNote() {
 }
 
 $('#invented').addEventListener('click', async () => {
+  const hint = $('#invented-hint');
+  hint.className = 'mk-hint';
+
+  // Turning it on without a key used to flip the switch and then flip it
+  // straight back, which looks like a broken control rather than a missing
+  // key. Refuse before changing anything, and point at the field.
+  if (!S.invented && !groq.getKey()) {
+    hint.textContent = 'This is the one thing that needs a Groq key \u2014 add one above.';
+    hint.classList.add('bad');
+    $('#groq').focus();
+    $('#groq').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
   S.invented = !S.invented;
   $('#invented').setAttribute('aria-pressed', String(S.invented));
   S.inventedPlan = null;
-  const hint = $('#invented-hint');
-  hint.className = 'mk-hint';
-  if (S.invented && !groq.getKey()) {
-    hint.textContent = 'Add a Groq key above \u2014 this is the one thing that needs it.';
-    hint.classList.add('bad');
-  } else {
-    hint.textContent = S.invented
-      ? 'Each run designs its own shots, so two runs of the same repo differ.'
-      : 'Off: shots come from the built-in library.';
-  }
+  hint.textContent = S.invented
+    ? 'Each run designs its own shots, so two runs of the same repo differ.'
+    : 'Off: shots come from the built-in library.';
   if (!S.story) return;
   if (S.invented && !await inventFilm()) {
+    // The run failed for a reason already logged; do not leave the switch on
+    // claiming something that did not happen.
     S.invented = false;
     $('#invented').setAttribute('aria-pressed', 'false');
+    hint.textContent = 'Inventing did not produce enough usable shots \u2014 using the library.';
+    hint.classList.add('bad');
   }
   build();
 });

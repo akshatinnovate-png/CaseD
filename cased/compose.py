@@ -508,6 +508,154 @@ def build_creative_plan(story: dict, ins: dict, dname: str, d: dict,
     return plan
 
 
+
+def build_atlas_plan(story: dict, ins: dict | None, d: dict,
+                     duration: float) -> list:
+    """A product film.
+
+    The other plans draw data about the repository. This one draws the
+    repository as a product: the files scattered as windows, the top-level
+    directories in orbit, recent work on a board, real source in an editor,
+    the language split on a dashboard.
+
+    Nothing here is invented. Every window, card, pill and figure comes out of
+    the analyzer, so the frame stamp reads MEASURED throughout. The shots can
+    draw fabricated screens -- that is what `sample` is for -- but a film about
+    a real repository has no reason to.
+    """
+    name = story["name"]
+    stats = story.get("stats", {})
+    langs = story.get("languages", [])
+    plan: list = []
+    chapter = [0]
+
+    def add(type_, data, weight, section="", caption="", hard=False, chap=None):
+        chapter[0] += 1
+        shot = {"type": type_, "data": data, "weight": weight, "hard": hard}
+        if section:
+            shot["section"] = section
+        if caption:
+            shot["caption"] = caption
+        if chap:
+            shot["chapter"] = f"{chapter[0]:02d} \u00b7 {chap}"
+        plan.append(shot)
+
+    files = stats.get("files") or 0
+    commits = stats.get("commits") or stats.get("commits_seen") or 0
+
+    # 1 -- the scatter, then the name for it
+    add("appwindows", {
+        "text": (plural(files, "file") + ". One *repository*.") if files
+                else f"{name}, *in one place*.",
+        "count": max(6, min(files or 9, 13)), "seed": story.get("seed") or 7,
+    }, 1.15, "the shape", story.get("tagline", "")[:72], chap="what it is")
+
+    # 2 -- the top-level directories, in orbit.
+    # The CLI's Story carries no file tree -- only the deep read and the
+    # browser's analyzer do -- so fall back to the directories the code
+    # moments came out of rather than drawing an empty ring.
+    tree = (ins or {}).get("tree") or story.get("tree") or []
+    mods = [t["path"] for t in tree if t.get("path") and t["path"] != "(root)"][:8]
+    if len(mods) < 3:
+        seen: list = []
+        for m in story.get("code_moments") or []:
+            top = m["path"].split("/")[0] if "/" in m["path"] else "(root)"
+            if top not in seen:
+                seen.append(top)
+        mods = seen[:8]
+    if len(mods) >= 3:
+        add("apporbit", {
+            "title": "Everything it is made of.",
+            "mark": name[:2].upper(),
+            "items": [{"name": m} for m in mods],
+        }, 1.45, "orbit view", plural(len(mods), "top-level directory").replace(
+            "directorys", "directories"), chap="layout")
+
+    # 3 -- recent work, as a board
+    tl = story.get("timeline") or []
+    if len(tl) >= 3:
+        cards = [{"text": _ellipsis(t["text"], 46)} for t in tl[-6:]]
+        third = max(1, len(cards) // 3)
+        add("appboard", {
+            "app": story.get("repo") or name,
+            "title": "The work, *on one board*.",
+            "sprint": plural(commits, "commit") if commits else "recent work",
+            "columns": [
+                {"name": "earlier", "cards": cards[:third]},
+                {"name": "then", "cards": cards[third:third * 2]},
+                {"name": "latest", "cards": cards[third * 2:]},
+            ],
+        }, 1.4, "history", "Every card is a real commit.", hard=True, chap="history")
+
+    # 4 -- real source, in an editor
+    moments = story.get("code_moments") or []
+    if moments:
+        m = moments[0]
+        # Siblings come from the other code moments, which are real paths the
+        # analyzer picked; there is no full tree on the Story to read.
+        tree_files = []
+        for other in moments:
+            if other["path"] not in tree_files:
+                tree_files.append(other["path"])
+        for extra in (stats.get("hottest_file"),):
+            if extra and extra not in tree_files:
+                tree_files.append(extra)
+        tree_files = tree_files[:7]
+        add("appcode", {
+            "app": story.get("repo") or name,
+            "title": "Written *here*.",
+            "root": m["path"].split("/")[0],
+            "branch": stats.get("branch") or "main",
+            "action": "Run",
+            "tab": m["path"].rsplit("/", 1)[-1],
+            "files": [{"name": f.rsplit("/", 1)[-1], "depth": f.count("/"),
+                       "active": f == m["path"]} for f in tree_files],
+            "code": m["code"][:9],
+        }, 1.6, "source", m.get("caption", "Real source, not a mockup."),
+            chap="the code")
+
+    # 5 -- the stack, on a dashboard
+    if len(langs) >= 2:
+        hero = langs[0]
+        add("appdash", {
+            "app": story.get("repo") or name,
+            "title": "The stack, *measured*.",
+            "value": f"{hero['share']}%", "delta": hero["name"],
+            "label": "share of the codebase",
+            # The share ladder is the series: real proportions, in order.
+            "series": [l["share"] for l in langs[:8]][::-1] or [1],
+            "cards": [{"label": l["name"], "value": f"{l['share']}%"}
+                      for l in langs[1:4]],
+        }, 1.35, "stack", f"{len(langs)} languages, measured from the tree.",
+            hard=True, chap="stack")
+
+    # 6 -- what it does, in the author's words
+    feats = story.get("features") or []
+    if len(feats) >= 2:
+        add("bullets", {"title": "what it does", "items": feats[:5]}, 1.3,
+            "capability", "Straight from the README.", chap="what it does")
+
+    # 7 -- the two audiences, if the insight found a contrast
+    if duration >= 45 and (ins or {}).get("techniques"):
+        techs = [t["name"] for t in ins["techniques"][:6]]
+        add("appsplit", {
+            "left": {"kicker": "in the source", "text": "What it *actually does*.",
+                     "items": techs[:3]},
+            "right": {"kicker": "in the repo", "text": "What it is *made of*.",
+                      "items": [f"{l['name']} {l['share']}%" for l in langs[:3]]},
+        }, 1.25, "two sides", "Found by reading the code.", hard=True,
+            chap="technique")
+
+    # 8 -- the card people screenshot
+    add("endcard", {
+        "name": name,
+        "sub": story.get("url") or story.get("repo") or "",
+        "cta": "made with cased2.0",
+    }, 1.0, "end", "", hard=True)
+
+    return plan
+
+
 def decorate(plan: list, d: dict, rng: random.Random,
              theme_spec: dict) -> None:
     """Attach the director's look to each shot: bed, camera, entrance, fx."""
@@ -563,8 +711,11 @@ def compose(story: dict, beatmap: dict, duration: float = 24.0,
     dname, d = pick(director, story.get("kind", "project"))
     rng = random.Random(seed or story.get("seed") or 1)
 
-    # Passing an insight report switches the film to the long-form arc.
-    if insight:
+    # The atlas director draws the repository as a product; passing an insight
+    # report switches any other director to the long-form arc.
+    if d.get("hud"):
+        plan = build_atlas_plan(story, insight, d, duration)
+    elif insight:
         plan = build_creative_plan(story, insight, dname, d, rng, duration)
     else:
         plan = build_plan(story, dname, d, rng, duration)
@@ -595,6 +746,10 @@ def compose(story: dict, beatmap: dict, duration: float = 24.0,
         "duration": round(duration, 4),
         "theme": theme_spec,
         "theme_name": theme_name,
+        # The frame furniture rides on the director, not the theme: it is
+        # pacing and grammar, not palette.
+        "hud": bool(d.get("hud")),
+        "hud_label": str(story["name"]).upper()[:18],
         "shots": shots,
         "beatmap": {k: v for k, v in beatmap.items() if k != "beats"},
         "share": share_copy(story, d["label"]),

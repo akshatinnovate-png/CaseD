@@ -4,7 +4,7 @@ cased2.0 / directors
 
 A director is pacing, shot grammar and transition vocabulary. It names a
 default theme, but the look is a separate axis -- see `themes.py`. Any of the
-54 themes composes with any of the directors:
+82 themes composes with any of the directors:
 
     python3 -m cased . --director terminal --theme ember
 
@@ -15,6 +15,23 @@ The story underneath stays the same.
 from __future__ import annotations
 
 DIRECTORS = {
+    # A product film: window chrome, a board, an editor, a dashboard, with the
+    # frame furniture on. This is the one that uses the app* shots -- the rest
+    # of the directors draw data, and a launch film for software mostly needs
+    # to show software.
+    "atlas": {
+        "label": "Atlas",
+        "blurb": "Product UI on paper, serif headlines, chapter marks and captions.",
+        "mood": "cinematic",
+        "theme": "atlas",
+        "beds": ["contours", "topo", "contours", "paper"],
+        "cams": ["none", "push", "none", "none"],
+        "ins": ["fade", "rise", "fade", "wipe", "fade"],
+        "pace": 1.05, "energy": 0.22, "intensity": 0.8,
+        "fx": [],
+        "hud": True,
+    },
+
     # Deep, filmic, restrained. The default -- it flatters almost any repo.
     "cinematic": {
         "label": "Cinematic",
