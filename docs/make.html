@@ -37,6 +37,19 @@
       </div>
 
       <div class="mk-field mk-field--key">
+        <label for="ghtoken">GitHub token <span class="mk-opt">optional</span></label>
+        <div class="mk-key">
+          <input id="ghtoken" type="password" spellcheck="false" autocomplete="off"
+                 placeholder="ghp_… or github_pat_…">
+        </div>
+        <p class="mk-hint" id="gh-hint">
+          Raises GitHub's limit from 60 requests an hour to 5,000, so creative
+          mode can read far more of your code. Public-repo read access is
+          enough. Kept in this browser.
+        </p>
+      </div>
+
+      <div class="mk-field mk-field--key">
         <label for="groq">Groq API key <span class="mk-opt">optional</span></label>
         <div class="mk-key">
           <input id="groq" type="password" spellcheck="false" autocomplete="off"
@@ -92,24 +105,40 @@
         <select id="director"></select>
       </div>
       <div class="mk-field">
-        <label for="duration">Runtime</label>
-        <select id="duration">
-          <option value="12">12 seconds</option>
-          <option value="20">20 seconds</option>
-          <option value="24" selected>24 seconds</option>
-          <option value="30">30 seconds</option>
-          <option value="40">40 seconds</option>
-        </select>
-        <p class="mk-hint">
-          Past 40s the shot list runs out and every shot overstays. A minute-long
-          film wants <code>--creative</code>, which reads the architecture and
-          writes a longer one.
-        </p>
+        <label for="duration">Runtime <span class="mk-opt">seconds</span></label>
+        <div class="mk-dur">
+          <input id="duration" type="number" min="6" max="240" step="1" value="24"
+                 inputmode="numeric">
+          <div class="mk-dur-presets" role="group" aria-label="Runtime presets">
+            <button type="button" data-dur="12">12s</button>
+            <button type="button" data-dur="24">24s</button>
+            <button type="button" data-dur="60">60s</button>
+            <button type="button" data-dur="90">90s</button>
+            <button type="button" data-dur="120">2m</button>
+          </div>
+        </div>
+        <p class="mk-hint" id="dur-hint"></p>
       </div>
       <div class="mk-field">
         <label for="filter">Themes</label>
         <select id="filter"><option value="">Best match first</option></select>
       </div>
+    </div>
+
+    <div class="mk-mode">
+      <button id="creative" class="mk-toggle" type="button" aria-pressed="false">
+        <span class="mk-toggle-dot" aria-hidden="true"></span>
+        <span class="mk-toggle-body">
+          <b>Creative mode</b>
+          <i>Reads the architecture, the signature function, the techniques in
+             your source and the shape of the history, and spends the middle of
+             the film on those instead of counters.</i>
+        </span>
+      </button>
+      <p class="mk-hint" id="creative-hint"></p>
+      <p class="mk-hint good" id="creative-auto" hidden>
+        Turned on for you &mdash; a film this long needs the structural beats.
+      </p>
     </div>
 
     <div class="mk-themes" id="themes"></div>
@@ -172,7 +201,8 @@
           one command.
         </p>
         <div class="mk-cmd"><code id="cmd"></code><button id="copy-cmd" class="mk-mini" type="button">Copy</button></div>
-        <p class="mk-get-note">Or a full minute, with the architecture and history read in:</p>
+        <p class="mk-get-note">Or the CLI's own deep read, which walks the whole
+          checkout and parses Python properly:</p>
         <div class="mk-cmd"><code id="cmd-long"></code><button id="copy-long" class="mk-mini" type="button">Copy</button></div>
         <div class="mk-get-pair">
           <button id="dl-spec" class="mk-get-btn" type="button">spec.json</button>

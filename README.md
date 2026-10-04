@@ -78,14 +78,39 @@ Mersenne Twister, and `forge/score.js` and `forge/compose.js` are ports of
 original in CI: the scorer is sample-identical, the composer matches every cut
 time. So the spec you download renders the film you just watched.
 
+**Creative mode** is a button on the page, and any runtime past 45 seconds
+turns it on for you, because the standard eleven-beat plan cannot fill a film
+that long without every shot overstaying. It reads your actual source and
+spends the middle of the film on structure instead of counters:
+
+| beat | from |
+|---|---|
+| what is in here | every top-level directory, by size |
+| architecture | the real import graph, with the module everything leans on |
+| how it runs | the pipeline, read from your README's arrow chain |
+| the idea | the signature function, with its docstring and the line doing the work |
+| techniques in the source | ~34 probes, each needing two sightings with one in real code |
+| the shape of the work | the commit heatmap, when there is enough history to show |
+| built with / what it does | the language split and your README's features |
+
+Runtime is a free number — type 90, or 150, or use the presets. Every beat is
+conditional on evidence: a repo with no import graph gets no architecture shot
+rather than an empty one.
+
+Add a **GitHub token** beside the Groq key if you want creative mode to read
+deeply. Unauthenticated, GitHub allows 60 requests an hour and the page reads
+14 source files; with a token that is 5,000 an hour and 60 files, and the
+graph, the techniques and the signature all get better for it.
+
 Two things only the CLI can do:
 
 - **Record at full quality.** The page can record the tab to a WebM, which runs
   in real time at your window's size. For 1920×1080 with every frame exact, use
   the spec download and the one-line command printed beside it.
-- **Films longer than about 40 seconds.** Past that the standard shot list runs
-  out and every shot overstays, so the page stops there. `--creative` reads the
-  architecture and the history and writes a long enough one.
+- **Read Python properly.** The CLI walks the whole checkout and parses Python
+  with `ast` to find the signature function. The browser has no Python parser,
+  so it scans function headers across languages instead — it reads the same
+  shapes and usually agrees, but it will sometimes pick a different function.
 
 Bring a [Groq](https://console.groq.com) key if you want a model to write the
 copy. It runs `openai/gpt-oss-120b` and nothing else: if that model is not on

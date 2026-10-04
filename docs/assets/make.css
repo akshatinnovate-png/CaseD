@@ -321,3 +321,48 @@ body.make {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* --- runtime: a free number plus presets ----------------------------- */
+.mk-dur { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+.mk-dur input { width: 104px; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.mk-dur-presets { display: flex; gap: 6px; flex: 1 1 auto; }
+.mk-dur-presets button {
+  flex: 1 1 0; min-width: 44px; padding: 0 10px;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 9px;
+  font: 600 11.5px/1 var(--mono); letter-spacing: .04em;
+  cursor: pointer; transition: all .16s var(--ease);
+}
+.mk-dur-presets button:hover { color: var(--fg); border-color: rgba(255,255,255,.3); }
+.mk-dur-presets button[aria-pressed="true"] {
+  color: #fff; background: rgba(255,45,113,.16); border-color: var(--pink);
+}
+
+/* --- creative mode toggle -------------------------------------------- */
+.mk-mode { margin-bottom: 26px; }
+.mk-toggle {
+  display: flex; gap: 14px; align-items: flex-start; width: 100%;
+  padding: 18px 20px; text-align: left; cursor: pointer;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px;
+  transition: border-color .18s var(--ease), background .18s var(--ease);
+}
+.mk-toggle:hover { border-color: rgba(255,255,255,.3); }
+.mk-toggle[aria-pressed="true"] {
+  border-color: var(--pink);
+  background: linear-gradient(180deg, rgba(255,45,113,.09), rgba(255,45,113,.02));
+}
+.mk-toggle-dot {
+  flex: 0 0 auto; width: 20px; height: 20px; margin-top: 2px; border-radius: 50%;
+  border: 2px solid var(--line); position: relative;
+  transition: border-color .18s var(--ease);
+}
+.mk-toggle[aria-pressed="true"] .mk-toggle-dot { border-color: var(--pink); }
+.mk-toggle-dot::after {
+  content: ""; position: absolute; inset: 3px; border-radius: 50%;
+  background: var(--pink); transform: scale(0);
+  transition: transform .18s var(--ease);
+}
+.mk-toggle[aria-pressed="true"] .mk-toggle-dot::after { transform: scale(1); }
+.mk-toggle-body { display: grid; gap: 5px; min-width: 0; }
+.mk-toggle-body b { font: 600 15px/1.2 var(--display); letter-spacing: -0.01em; color: var(--fg); }
+.mk-toggle-body i { font: 400 12.5px/1.55 var(--display); font-style: normal; color: var(--muted); }

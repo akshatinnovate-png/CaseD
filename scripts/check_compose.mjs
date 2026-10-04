@@ -22,6 +22,12 @@ const themes = JSON.parse(readFileSync(join(ROOT, 'docs/assets/themes.json'), 'u
 const directors = JSON.parse(readFileSync(join(ROOT, 'docs/assets/directors.json'), 'utf8'));
 
 const CASES = [
+  // Creative mode: the long-form arc, driven by the Python insight report so
+  // both sides plan from identical evidence. (The browser's own insight layer
+  // reads fewer files and has no Python AST, which is checked separately —
+  // this case is about the composer agreeing on the arc it builds.)
+  { duration: 60, director: null, theme: null, seed: 7, creative: true },
+  { duration: 90, director: 'creative', theme: 'ember', seed: 4, creative: true },
   { duration: 24, director: null, theme: null, seed: 7 },
   { duration: 24, director: 'brutalist', theme: 'hotpink', seed: 7 },
   { duration: 60, director: 'cinematic', theme: 'daylight', seed: 3 },
@@ -41,19 +47,24 @@ from cased.analyze import analyze
 from cased import score, compose as comp
 story_obj = analyze(Path(${JSON.stringify(ROOT)}), seed=${c.seed})
 story = json.loads(story_obj.to_json())
+insight = None
+if ${c.creative ? 'True' : 'False'}:
+    from cased.insight import inspect
+    insight = json.loads(inspect(Path(${JSON.stringify(ROOT)}), story).to_json())
 buf, bm = score.compose_score(${c.duration}, "cinematic", ${c.seed}, 1.0)
 spec = comp.compose(story, bm, duration=${c.duration},
                     director=${py(c.director)},
-                    theme=${py(c.theme)}, seed=${c.seed})
-print(json.dumps({"story": story, "spec": spec}))
+                    theme=${py(c.theme)}, seed=${c.seed}, insight=insight)
+print(json.dumps({"story": story, "spec": spec, "insight": insight}))
 `], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
 
   const story = out.story;
   const { beatmap } = composeScore(c.duration, 'cinematic', c.seed, 1.0);
-  const got = compose(story, beatmap, { ...c, themes, directors });
+  const got = compose(story, beatmap, { ...c, themes, directors, insight: out.insight });
   const want = out.spec;
 
-  const label = `${c.duration}s ${c.director || 'auto'}/${c.theme || 'auto'} seed=${c.seed}`;
+  const label = `${c.creative ? 'creative ' : ''}${c.duration}s `
+    + `${c.director || 'auto'}/${c.theme || 'auto'} seed=${c.seed}`;
   const bad = [];
 
   for (const k of ['project', 'director', 'director_label', 'mode', 'seed',

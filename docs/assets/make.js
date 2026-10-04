@@ -13,6 +13,7 @@
 import { parseRepo, analyzeRepo, getFile, RateLimited } from './forge/github.js';
 import { readFrontend, rankThemes } from './forge/palette.js';
 import { readCodeMoments } from './forge/code.js';
+import { inspect } from './forge/insight.js';
 import { composeScore, wavBytes, toAudioBuffer, SR } from './forge/score.js';
 import { compose, pickDirector } from './forge/compose.js';
 import * as groq from './forge/groq.js';
@@ -27,8 +28,8 @@ const el = (tag, cls, text) => {
 
 const S = {
   themes: null, directors: null,
-  story: null, frontend: null, ranked: [],
-  theme: null, director: null, duration: 24,
+  story: null, frontend: null, ranked: [], insight: null, repo: null,
+  theme: null, director: null, duration: 24, creative: false,
   spec: null, bus: null, beatmap: null, copy: null,
   playing: false, raf: 0, startedAt: 0, startedFrom: 0,
   audioCtx: null, audioBuf: null, audioNode: null,
@@ -76,6 +77,30 @@ const dataReady = (async () => {
     fsel.append(o);
   }
 })();
+
+// ------------------------------------------------------------ github token
+
+const GH_STORE = 'cased.github.token';
+const ghInput = $('#ghtoken');
+
+function ghToken() {
+  const v = ghInput.value.trim();
+  return v || null;
+}
+try {
+  const saved = localStorage.getItem(GH_STORE);
+  if (saved) ghInput.value = saved;
+} catch { /* storage blocked: run tokenless */ }
+ghInput.addEventListener('change', () => {
+  try {
+    const v = ghInput.value.trim();
+    if (v) localStorage.setItem(GH_STORE, v); else localStorage.removeItem(GH_STORE);
+  } catch { /* nothing to do */ }
+  $('#gh-hint').textContent = ghInput.value.trim()
+    ? 'Saved in this browser only. Creative mode can now read much more.'
+    : 'Without a token GitHub allows 60 requests an hour, shared by everything here.';
+  budgetNote();
+});
 
 // ---------------------------------------------------------------- the key
 
@@ -161,14 +186,15 @@ $('#go').addEventListener('click', async () => {
 
 async function run(repo) {
   // --- 1. read the repository
-  const story = await analyzeRepo(repo, null, s => log(s));
+  S.repo = repo;
+  const story = await analyzeRepo(repo, ghToken(), s => log(s));
   S.story = story;
   log(`${story.full_name}: ${story.summaryLine}`, 'done');
   renderFound(story);
   show('#step-read');
 
   // --- 2. read the frontend it ships, and rank the themes against it
-  const front = await readFrontend(repo, story.treePaths, null, story.branch, s => log(s));
+  const front = await readFrontend(repo, story.treePaths, ghToken(), story.branch, s => log(s));
   S.frontend = front;
   if (front.frameworks.length) {
     log(`frontend: ${front.frameworks.map(f => f.name).join(', ')} in ${front.root}/`, 'done');
@@ -180,7 +206,7 @@ async function run(repo) {
   }
 
   // --- 3. real source for the code shots
-  story.code_moments = await readCodeMoments(repo, story, null, { onStep: s => log(s) });
+  story.code_moments = await readCodeMoments(repo, story, ghToken(), { onStep: s => log(s) });
   if (story.code_moments.length) {
     log(`source: ${story.code_moments.map(m => m.path).join(', ')}`, 'done');
   } else {
@@ -217,6 +243,8 @@ async function run(repo) {
     S.copy = groq.offlineCopy(story);
   }
 
+  if (S.creative) await deepRead();
+
   await build();
   show('#step-film');
   show('#step-get');
@@ -244,12 +272,15 @@ async function build() {
   wait.hidden = false;
   wait.textContent = 'scoring…';
 
-  S.duration = Number($('#duration').value);
+  S.duration = Math.max(6, Math.min(240, Number($('#duration').value) || 24));
   const chosen = $('#director').value || null;
   const story = storyForFilm();
+  const insight = S.creative ? S.insight : null;
 
-  // Mood follows the theme unless the director pins one, exactly as the CLI.
-  const dname = chosen || S.copy?.director || pickDirector(story, S.directors);
+  // Mood follows the theme unless the director pins one, exactly as the CLI —
+  // which also resolves --creative to the creative director before composing.
+  const dname = chosen || (insight ? 'creative' : null)
+    || S.copy?.director || pickDirector(story, S.directors);
   const t = S.themes[S.theme] || S.themes[S.directors[dname].theme];
   const mood = S.directors[dname].mood || t.mood || 'cinematic';
   const seed = S.story.stats.files + S.story.stats.commits_seen || 1;
@@ -262,13 +293,14 @@ async function build() {
   wait.textContent = 'cutting…';
   S.spec = compose(story, beatmap, {
     duration: S.duration, director: dname, theme: S.theme,
-    seed, themes: S.themes, directors: S.directors,
+    seed, themes: S.themes, directors: S.directors, insight,
   });
   S.director = dname;
 
   $('#film-sub').textContent =
     `${S.spec.shots.length} shots over ${S.duration}s, cut to ${beatmap.bpm} BPM. `
-    + `${S.directors[dname].label} direction, ${S.spec.theme_name} palette.`;
+    + `${S.directors[dname].label} direction, ${S.spec.theme_name} palette`
+    + (insight ? ', creative arc.' : '.');
 
   await loadStage();
   renderMarks();
@@ -388,8 +420,97 @@ $('#scrub').addEventListener('input', () => {
   seek((Number($('#scrub').value) / 1000) * S.duration);
 });
 
-$('#duration').addEventListener('change', () => { if (S.story) build(); });
+/**
+ * How many files the deep read may fetch. Without a token the whole page has
+ * roughly 50 requests an hour to spend and the rest of the flow already uses
+ * about ten, so the budget stays small; a token lifts the ceiling to 5,000 and
+ * the graph, the techniques and the signature all get better for it.
+ */
+const readBudget = () => (ghToken() ? 60 : 14);
+
+function budgetNote() {
+  const dur = Number($('#duration').value) || 24;
+  const bits = [];
+  if (S.creative) {
+    bits.push(`Reads up to ${readBudget()} source files`
+      + (ghToken() ? '.' : ' — add a GitHub token to read many more.'));
+  } else if (dur >= CREATIVE_FROM) {
+    bits.push(`Past ${CREATIVE_FROM}s the standard shot list runs out and every `
+      + 'shot overstays. Turn on creative mode for a film this long.');
+  }
+  $('#creative-hint').textContent = S.creative
+    ? bits.join(' ')
+    : 'Off: the standard arc — hook, numbers, source, stack, end card.';
+  $('#dur-hint').textContent = !S.creative && dur >= CREATIVE_FROM ? bits[0] || '' : '';
+}
+
+$('#creative').addEventListener('click', async () => {
+  S.creative = !S.creative;
+  $('#creative').setAttribute('aria-pressed', String(S.creative));
+  $('#creative-auto').hidden = true;
+  // Creative mode's default runtime is a minute, as it is from the CLI.
+  if (S.creative && Number($('#duration').value) < CREATIVE_FROM) setDuration(60);
+  budgetNote();
+  await rebuild();
+});
+
+/** Past this, the standard eleven-beat plan has nothing left to show. */
+const CREATIVE_FROM = 45;
+
+function setDuration(v) {
+  $('#duration').value = String(v);
+  for (const b of document.querySelectorAll('.mk-dur-presets button')) {
+    b.setAttribute('aria-pressed', String(Number(b.dataset.dur) === Number(v)));
+  }
+  // A film this long cannot be filled by counters and title cards, so asking
+  // for one is asking for the structural beats. Switch over rather than
+  // rendering a minute of shots that each overstay by seconds.
+  if (Number(v) >= CREATIVE_FROM && !S.creative) {
+    S.creative = true;
+    $('#creative').setAttribute('aria-pressed', 'true');
+    $('#creative-auto').hidden = false;
+  }
+  budgetNote();
+}
+
+/** Rebuild, first doing the deep read if creative mode now needs it. */
+async function rebuild() {
+  if (!S.story) return;
+  if (S.creative && !S.insight) await deepRead();
+  build();
+}
+
+for (const b of document.querySelectorAll('.mk-dur-presets button')) {
+  b.addEventListener('click', () => { setDuration(Number(b.dataset.dur)); rebuild(); });
+}
+
+let durTimer = 0;
+$('#duration').addEventListener('input', () => {
+  setDuration($('#duration').value);
+  clearTimeout(durTimer);
+  durTimer = setTimeout(rebuild, 600);
+});
 $('#director').addEventListener('change', () => { if (S.story) build(); });
+
+/** The deep read, on demand — it costs requests, so only when asked for. */
+async function deepRead() {
+  const wait = $('#screen-wait');
+  wait.hidden = false;
+  wait.textContent = 'reading the architecture…';
+  log('reading the architecture, techniques and history…');
+  S.insight = await inspect(S.repo, S.story, ghToken(),
+                            { budget: readBudget(), onStep: m => log(m) });
+  const i = S.insight;
+  log(`read ${i.read.length} files: ${i.modules.length} modules, `
+    + `${i.edges.length} imports`
+    + (i.hub ? `, centred on ${i.hub.split('/').pop()}` : ''), 'done');
+  if (i.signature.name) {
+    log(`signature: ${i.signature.name}() in ${i.signature.module}`, 'done');
+  }
+  if (i.techniques.length) {
+    log(`techniques: ${i.techniques.map(t => t.name).join(', ')}`, 'done');
+  }
+}
 
 // --------------------------------------------------------------- renderers
 
@@ -564,15 +685,16 @@ function save(blob, name) {
 const slug = () => (S.story?.repo || 'film').replace(/[^\w.-]+/g, '-').toLowerCase();
 
 function renderGet() {
+  const target = S.story.url || S.story.full_name;
   $('#cmd').textContent =
-    `python3 -m cased ${S.story.url || S.story.full_name} `
-    + `--theme ${S.spec.theme_name} --director ${S.director} `
+    `python3 -m cased ${target} --theme ${S.spec.theme_name} `
+    + `--director ${S.director}${S.creative ? ' --creative' : ''} `
     + `--duration ${S.duration} --quality high`;
-  // The standard shot list thins out past ~40s; creative mode reads the
-  // architecture and the history and writes enough beats to fill a minute.
+  // The CLI's deep read walks the whole checkout and parses Python properly,
+  // so it finds more than a rate-limited browser can.
   $('#cmd-long').textContent =
-    `python3 -m cased ${S.story.url || S.story.full_name} `
-    + `--theme ${S.spec.theme_name} --creative --duration 60 --quality high`;
+    `python3 -m cased ${target} --theme ${S.spec.theme_name} `
+    + `--creative --duration ${Math.max(60, S.duration)} --quality high`;
 
   const box = $('#share');
   box.textContent = '';
@@ -692,6 +814,18 @@ $('#dl-video').addEventListener('click', async () => {
     + 'For 1080p with exact frames, use the spec and FFmpeg.';
 });
 
-// Prefill from ?repo= so a link can carry the repository.
-const q = new URLSearchParams(location.search).get('repo');
-if (q) { $('#repo').value = q; }
+// Prefill from ?repo= so a link can carry the repository, and ?creative=1 or
+// ?duration= so a link can carry the whole setup.
+const q = new URLSearchParams(location.search);
+if (q.get('repo')) $('#repo').value = q.get('repo');
+if (q.get('duration')) setDuration(Number(q.get('duration')) || 24);
+if (q.get('creative') === '1') {
+  S.creative = true;
+  $('#creative').setAttribute('aria-pressed', 'true');
+  if (!q.get('duration')) setDuration(60);
+}
+setDuration($('#duration').value);
+$('#gh-hint').textContent = ghInput.value.trim()
+  ? 'Loaded from this browser.'
+  : 'Without a token GitHub allows 60 requests an hour, shared by everything here.';
+budgetNote();

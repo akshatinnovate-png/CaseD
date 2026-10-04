@@ -310,6 +310,194 @@ export function buildPlan(story, dname, d, rng, duration) {
   return plan;
 }
 
+
+/** Opening delimiters of a docstring, built rather than written literally. */
+const DOCQ = ['"'.repeat(3), "'".repeat(3)];
+
+/**
+ * Which line of the signature function the callout should point at.
+ *
+ * Not the def, not the docstring, not a bare `return x` — the line doing the
+ * actual work, which is usually the densest expression in the body.
+ */
+export function focusLine(code) {
+  let best = -1, bestI = 0;
+  code.forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line || i === 0) return;
+    if (line.startsWith('#') || line.startsWith('@') || DOCQ.includes(line.slice(0, 3))) return;
+    if (['else:', 'try:', 'pass'].includes(line)) return;
+    let score = line.length * 0.35;
+    for (const op of '=+-*/<>[](){}') score += (line.split(op).length - 1) * 2.2;
+    if (/\b(for|while|if|return|yield)\b/.test(line)) score += 9;
+    if (line.startsWith('def ') || line.startsWith('class ')) score -= 14;
+    if (score > best) { best = score; bestI = i; }
+  });
+  return bestI;
+}
+
+/**
+ * The long-form arc.
+ *
+ * A minute of title cards and counters is a minute of nothing: by about twenty
+ * seconds the viewer has learned the format and starts reading the clock
+ * instead of the work. So this plan spends its middle on *structure* — what
+ * the repo is made of, how it fits together, which line is the clever one —
+ * and only returns to numbers once it has earned them.
+ *
+ * Every beat is conditional on evidence. A repo with no import graph gets no
+ * architecture shot rather than an empty one.
+ */
+export function buildCreativePlan(story, ins, dname, d, rng, duration) {
+  const name = story.name;
+  const plan = [];
+  const add = (type, data, weight, hard = false) => plan.push({ type, data, weight, hard });
+
+  // 1 -- cold open
+  add('title', {
+    kicker: story.repo || 'introducing',
+    text: hookLine(story),
+    caps: false, rule: true,
+  }, 1.0);
+
+  // 2 -- the thesis, in the author's own words
+  const claims = ins.claims || [];
+  if (claims.length) {
+    add('bigquote', { text: claims[0], source: 'from the README' }, 1.25, true);
+  }
+
+  // 3 -- one number, to ground it
+  const hl = story.highlights || [];
+  if (hl.length) add('stat', { value: hl[0].value, label: hl[0].label }, 0.7, true);
+
+  // 4 -- what is actually in here
+  if ((ins.tree || []).length >= 3) {
+    add('tree', { title: 'what is in here', items: ins.tree.slice(0, 8) }, 1.4);
+  }
+
+  // 5 -- how it is put together
+  const mods = ins.modules || [];
+  if (mods.length >= 4) {
+    const hub = ins.hub;
+    // A node with no edges tells the viewer nothing and crowds the ring. Keep
+    // the connected graph; only fall back to isolated modules if the project
+    // genuinely has too few connections to fill a shot.
+    const linked = mods.filter(m => m.deg_in || m.deg_out);
+    const pool = linked.length >= 4 ? linked : mods;
+    const rank = m => m.deg_in * 3 + m.deg_out + m.loc / 400;
+    const nodes = pool.slice().sort((a, b) => rank(b) - rank(a)).slice(0, 12);
+    const idx = new Map(nodes.map((m, i) => [m.id, i]));
+    const edges = [];
+    for (const [a, b] of ins.edges || []) {
+      const ia = mods[a]?.id, ib = mods[b]?.id;
+      if (idx.has(ia) && idx.has(ib)) edges.push([idx.get(ia), idx.get(ib)]);
+    }
+    let note = `${mods.length} modules, ${(ins.edges || []).length} imports between them`;
+    if (hub) note += ` \u2014 everything leans on ${hub.split('/').pop()}`;
+    add('arch', {
+      title: 'architecture',
+      nodes: nodes.map(m => ({ label: m.label, hub: m.id === hub })),
+      edges: edges.slice(0, 22),
+      note,
+    }, 1.5);
+  }
+
+  // 6 -- the process
+  if ((ins.pipeline || []).length >= 3) {
+    add('flow', { title: 'how it runs', items: ins.pipeline.slice(0, 5) }, 1.35, true);
+  }
+
+  // 7 -- THE CENTREPIECE: the function the project is actually about
+  const sig = ins.signature || {};
+  if (sig.code && sig.code.length) {
+    // The shot renders at most CALLOUT_LINES rows, so the focus index has to
+    // be chosen against what will actually be on screen — picking it from the
+    // full function silently points at a line nobody sees.
+    const shown = sig.code.slice(0, CALLOUT_LINES);
+    add('callout', {
+      path: `${sig.module} \u2014 ${sig.name}()`,
+      code: shown,
+      highlight: focusLine(shown),
+      label: 'the idea',
+      note: sig.doc || `${sig.lines} lines, ${sig.branches || 0} branches`,
+    }, 1.75);
+  }
+
+  // 8 -- a second look at real source, elsewhere in the tree
+  const moments = story.code_moments || [];
+  if (moments.length) {
+    const m = moments[0];
+    add('code', { path: m.path, code: m.code, caption: m.caption || '', dur: 3.2 }, 1.3);
+  }
+
+  // 9 -- what it knows how to do
+  const techs = ins.techniques || [];
+  if (techs.length >= 3) {
+    add('constellation', {
+      title: 'techniques in the source',
+      items: techs.slice(0, 8).map(t => ({ name: t.name })),
+    }, 1.3, true);
+  }
+
+  // 10 -- the second number
+  if (hl.length > 1) add('stat', { value: hl[1].value, label: hl[1].label }, 0.7);
+
+  // 11 -- the shape of the work
+  const cad = ins.cadence || [];
+  // A heatmap of one busy afternoon is an empty grid with a dot in it. Only
+  // earn the shot when there is a spread of activity to actually show.
+  const activeDays = cad.filter(Boolean).length;
+  if (cad.length >= 60 && activeDays >= 12) {
+    add('heatmap', { title: 'the last six months', days: cad, note: ins.peak_day || '' }, 1.25);
+  }
+
+  // 12 -- milestones
+  const tl = story.timeline || [];
+  if (tl.length >= 3) add('timeline', { title: 'how it got here', items: tl.slice(-4) }, 1.2);
+
+  // 13 -- the stack
+  const langs = story.languages || [];
+  if (langs.length >= 2) {
+    add('langs', {
+      title: 'built with',
+      items: langs.slice(0, 5).map(l => ({ name: l.name, share: l.share, color: l.color })),
+    }, 1.0, true);
+  }
+
+  // 14 -- what it does for you
+  const feats = story.features || [];
+  if (feats.length >= 2) add('bullets', { title: 'what it does', items: feats.slice(0, 5) }, 1.35);
+
+  // 15 -- this, not that
+  const contrasts = ins.contrasts || [];
+  if (contrasts.length) {
+    add('compare', {
+      left: contrasts[0].left, right: contrasts[0].right,
+      leftLabel: name, rightLabel: 'not',
+    }, 1.2, true);
+  }
+
+  // 16 -- a closing claim
+  if (claims.length > 1) add('bigquote', { text: claims[1], source: '' }, 1.15);
+
+  // 17 -- it ships
+  add('globe', {
+    kicker: 'available now',
+    text: 'Ship it anywhere',
+    sub: story.license ? `Open source \u00b7 ${story.license}` : 'Clone it and run it.',
+  }, 1.1, true);
+
+  // 18 -- the card people screenshot
+  add('endcard', {
+    name,
+    sub: story.url || story.repo || '',
+    cta: 'made with cased2.0',
+  }, 1.0, true);
+
+  void rng; void dname; void duration;
+  return plan;
+}
+
 // ---------------------------------------------------------------- decorate
 
 /** Attach the director's look to each shot: bed, camera, entrance, fx. */
@@ -397,13 +585,19 @@ export function shareCopy(story, director) {
  */
 export function compose(story, beatmap, {
   duration = 24, director = null, theme = null, width = 1920, height = 1080,
-  seed = 0, themes, directors,
+  seed = 0, themes, directors, insight = null,
 } = {}) {
+  // Mirrors compose.py exactly: the composer does not prefer a director just
+  // because an insight report came with it. The CLI resolves `--creative` to
+  // the creative director before calling in, and so does the Make page.
   const dname = director && directors[director] ? director : pickDirector(story, directors);
   const d = directors[dname];
   const rng = new PyRandom(seed || story.seed || 1);
 
-  const plan = buildPlan(story, dname, d, rng, duration);
+  // Passing an insight report switches the film to the long-form arc.
+  const plan = insight
+    ? buildCreativePlan(story, insight, dname, d, rng, duration)
+    : buildPlan(story, dname, d, rng, duration);
 
   // The director names a default theme; an explicit theme overrides it. Look
   // and pacing are independent axes, so any theme composes with any director.
@@ -432,7 +626,7 @@ export function compose(story, beatmap, {
     project: story.name,
     director: dname,
     director_label: d.label,
-    mode: 'standard',
+    mode: insight ? 'creative' : 'standard',
     seed: seed || story.seed || 1,
     fps: 30,
     width, height,
