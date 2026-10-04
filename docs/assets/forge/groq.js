@@ -18,16 +18,13 @@
 const API = 'https://api.groq.com/openai/v1';
 const KEY_STORE = 'cased.groq.key';
 
-/** Models to prefer, best first. Availability is checked at run time, because
- *  hosted model names come and go faster than a static page can track. */
-const PREFERRED = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-70b-versatile',
-  'moonshotai/kimi-k2-instruct',
-  'qwen/qwen3-32b',
-  'llama-3.1-8b-instant',
-  'gemma2-9b-it',
-];
+/**
+ * The one model this page uses. Not a preference order with a fallback: if it
+ * is not on the account, the run says so and the copy comes from the README
+ * instead. Quietly swapping in a different model would change the writing
+ * without anyone being told which model wrote it.
+ */
+export const MODEL = 'openai/gpt-oss-120b';
 
 export class GroqError extends Error {
   constructor(message, status) { super(message); this.status = status; }
@@ -85,17 +82,18 @@ export async function listModels(key) {
   return (j.data || []).map(m => m.id).filter(Boolean);
 }
 
-export function pickModel(available) {
-  for (const want of PREFERRED) if (available.includes(want)) return want;
-  // Prefer something instruction-tuned over an audio or guard model.
-  const text = available.filter(m => !/whisper|tts|guard|vision|embed/i.test(m));
-  return text[0] || available[0] || PREFERRED[0];
+/** Confirm MODEL is on this account, or fail naming what is missing. */
+export function requireModel(available) {
+  if (available.includes(MODEL)) return MODEL;
+  throw new GroqError(
+    `${MODEL} is not available on this key` +
+    (available.length ? ` (${available.length} other models are)` : ''), 404);
 }
 
-/** Confirm a key works, and report which model it will use. */
+/** Confirm a key works and that it can reach the one model this page uses. */
 export async function checkKey(key) {
   const models = await listModels(key);
-  return { ok: true, model: pickModel(models), models: models.length };
+  return { ok: true, model: requireModel(models), models: models.length };
 }
 
 // ------------------------------------------------------------- the honesty guard
@@ -229,7 +227,7 @@ export function factsFor(story, frontend) {
  */
 export async function enrich({ story, frontend, directors, theme }, key, opts = {}) {
   const facts = factsFor(story, frontend);
-  const model = opts.model || pickModel(await listModels(key));
+  const model = opts.model || requireModel(await listModels(key));
   const prompt = [
     `Facts (JSON):`, JSON.stringify(facts, null, 1), '',
     `Director names you may choose from: ${Object.keys(directors || {}).join(', ')}`,

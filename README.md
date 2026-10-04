@@ -88,8 +88,10 @@ Two things only the CLI can do:
   architecture and the history and writes a long enough one.
 
 Bring a [Groq](https://console.groq.com) key if you want a model to write the
-copy. It is optional, it stays in your browser, and it is sent to nobody but
-Groq. The model may only phrase things — every line it writes is checked
+copy. It runs `openai/gpt-oss-120b` and nothing else: if that model is not on
+your account the page says so and falls back to your README, rather than
+quietly writing with a different model. The key is optional, it stays in your
+browser, and it is sent to nobody but Groq. The model may only phrase things — every line it writes is checked
 against the numbers actually measured from the repository, and any line
 quoting a number that is not there is dropped. Without a key the copy comes
 from your README, and the film is identical in structure either way.
