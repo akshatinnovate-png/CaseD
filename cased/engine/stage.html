@@ -6150,6 +6150,45 @@ window.__CASED = {
   get duration() { return S.spec ? S.spec.duration : 0; },
   get size() { return [S.W, S.H]; },
 };
+
+/* =======================================================================
+   postMessage transport
+   -----------------------------------------------------------------------
+   The renderer drives this page directly through __CASED, because
+   Playwright owns the page. A browser embedding it does not get that:
+   the page is framed with sandbox="allow-scripts" and no
+   allow-same-origin, so the parent cannot reach in -- which is the
+   point. The host's localStorage holds the viewer's API keys, and shot
+   code written by a model runs in here.
+
+   So the frame is driven by message instead. Every call answers with
+   {id, ok, value} or {id, ok:false, error}, and the frame announces
+   itself once it is ready so the host does not have to poll.
+   ======================================================================= */
+addEventListener('message', async (ev) => {
+  const msg = ev.data;
+  if (!msg || msg.channel !== 'cased') return;
+  const reply = (body) => {
+    // ev.source is the frame's opener; the opaque origin means '*' is the
+    // only usable target, and nothing secret travels this way.
+    try { ev.source.postMessage({ channel: 'cased', id: msg.id, ...body }, '*'); }
+    catch (e) { /* host went away */ }
+  };
+  try {
+    switch (msg.call) {
+      case 'load':     await load(msg.spec); return reply({ ok: true, value: S.spec.duration });
+      case 'seek':     seek(msg.t);          return reply({ ok: true });
+      case 'duration': return reply({ ok: true, value: S.spec ? S.spec.duration : 0 });
+      case 'size':     return reply({ ok: true, value: [S.W, S.H] });
+      case 'ping':     return reply({ ok: true, value: 'ready' });
+      default:         return reply({ ok: false, error: 'unknown call: ' + msg.call });
+    }
+  } catch (e) {
+    reply({ ok: false, error: String(e && e.message || e) });
+  }
+});
+
+try { parent.postMessage({ channel: 'cased', event: 'ready' }, '*'); } catch (e) { /* not framed */ }
 </script>
 </body>
 </html>

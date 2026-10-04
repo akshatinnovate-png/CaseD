@@ -237,7 +237,7 @@ python3 -m cased . --list-themes
 python3 -m cased . --list-graphics
 ```
 
-### 74 themes
+### 82 themes
 
 Grouped by family — `deep`, `daylight`, `editorial`, `warm`, `neon`,
 `terminal`, `bright`, `nature`, `jewel`. Each carries its own grain, scanline
@@ -258,7 +258,7 @@ type that carries the idea.
 | nature | forest · ocean · glacier · desert · aurora_borealis · nebula · moss · storm |
 | jewel | royal · emerald · ruby · sapphire · copper · ultraviolet |
 | daylight | daylight · porcelain · linen · meadow · lagoon · lilac · blush · pewter · honey · mint · ivory · cement · sky · coral |
-| editorial | atlas · broadsheet · manuscript · inkwell · quarto · gazette |
+| editorial | atlas · broadsheet · manuscript · inkwell · quarto · gazette · letterpress · foulard · vellum · oxblood · slateprint · almanac · folio · nocturne |
 
 ### Product UI
 
@@ -278,10 +278,10 @@ in the accent italic, the way the editorial register wants it.
 A screen whose contents were not measured carries a SAMPLE DATA stamp: an
 invented dashboard that does not say so is indistinguishable from a real one.
 
-### 316 graphics primitives
+### 324 graphics primitives
 
 ```
-  74  themes           palette + grain + scanlines + vignette + letterbox + bed
+  82  themes           palette + grain + scanlines + vignette + letterbox + bed
   72  shot types       the compositions that carry content
   82  background beds  one GLSL program each, compiled on demand
   45  overlay layers   particles, weather, HUD, signal, film
@@ -300,7 +300,7 @@ Everything is verifiable, not asserted:
 ```bash
 node scripts/gallery.mjs                 # render every primitive, fail on any blank
 node scripts/gallery.mjs --out /tmp/g    # ...and write the PNGs
-node scripts/gallery.mjs --only themes   # just the 74 themes
+node scripts/gallery.mjs --only themes   # just the 82 themes
 ```
 
 The self-test runs it, so a shot that throws — or silently paints an empty
@@ -468,7 +468,7 @@ examples/            the film cased2.0 made about itself
 python3 scripts/selftest.py          # full — render + the whole graphics gallery
 python3 scripts/selftest.py --fast   # skip the render and gallery stages
 python3 scripts/sync_bed.py          # after editing any shader in stage.html
-node scripts/gallery.mjs             # verify all 316 primitives render
+node scripts/gallery.mjs             # verify all 324 primitives render
 ```
 
 The self-test asserts the invariants that are easy to break by accident:

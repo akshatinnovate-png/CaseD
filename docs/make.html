@@ -154,8 +154,12 @@
 
     <div class="mk-stage">
       <div class="mk-screen">
+        <!-- allow-scripts without allow-same-origin gives the frame an opaque
+             origin: it cannot read this page's localStorage, where the Groq
+             key and GitHub token live, and it cannot touch this DOM. Shot
+             code written by a model runs in there, so that matters. -->
         <iframe id="stage" src="engine/stage.html" title="Film preview"
-                scrolling="no" tabindex="-1"></iframe>
+                sandbox="allow-scripts" scrolling="no" tabindex="-1"></iframe>
         <div class="mk-screen-wait" id="screen-wait">building…</div>
       </div>
 

@@ -309,26 +309,65 @@ async function build() {
   wait.hidden = true;
 }
 
-function stageWin() {
+/* ---------------------------------------------------------------- stage
+ *
+ * The engine runs in a frame with sandbox="allow-scripts" and no
+ * allow-same-origin, so this page cannot reach into it and it cannot reach
+ * back. That is deliberate: this page's localStorage holds the viewer's Groq
+ * key and GitHub token, and shot code written by a model runs in that frame.
+ * An opaque origin cannot read either one.
+ *
+ * The cost is that every call is a message. These wrap that back up into
+ * something that reads like a function call.
+ */
+let stageReady = null;
+let msgSeq = 0;
+const pending = new Map();
+
+addEventListener('message', (ev) => {
+  const m = ev.data;
+  if (!m || m.channel !== 'cased') return;
+  if (m.event === 'ready') { stageReady?.(); return; }
+  const slot = pending.get(m.id);
+  if (!slot) return;
+  pending.delete(m.id);
+  m.ok ? slot.resolve(m.value) : slot.reject(new Error(m.error || 'engine error'));
+});
+
+function stageCall(call, extra = {}, timeout = 15000) {
   const f = $('#stage');
-  return f && f.contentWindow && f.contentWindow.__CASED ? f.contentWindow : null;
+  if (!f || !f.contentWindow) return Promise.reject(new Error('no engine frame'));
+  const id = ++msgSeq;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    setTimeout(() => {
+      if (pending.delete(id)) reject(new Error(`engine did not answer "${call}"`));
+    }, timeout);
+    f.contentWindow.postMessage({ channel: 'cased', id, call, ...extra }, '*');
+  });
+}
+
+/** Resolves once the framed engine has announced itself. */
+function whenStageReady() {
+  return new Promise(res => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; res(); } };
+    stageReady = finish;
+    // It may have announced itself before this listener existed, so ask.
+    stageCall('ping', {}, 1500).then(finish, () => {});
+    setTimeout(finish, 6000);
+  });
 }
 
 async function loadStage() {
-  const f = $('#stage');
-  // The iframe may still be loading on the first run.
-  if (!stageWin()) {
-    await new Promise(res => {
-      if (stageWin()) return res();
-      f.addEventListener('load', res, { once: true });
-      setTimeout(res, 4000);
-    });
+  await whenStageReady();
+  try {
+    await stageCall('load', { spec: S.spec }, 30000);
+    await stageCall('seek', { t: 0 });
+    seekUI(0);
+  } catch (e) {
+    log(`the preview engine did not load: ${e.message}`, 'err');
   }
-  const w = stageWin();
-  if (!w) { log('the preview engine did not load', 'err'); return; }
-  w.__CASED.load(S.spec);
-  w.__CASED.seek(0);
-  seekUI(0);
 }
 
 /**
@@ -361,14 +400,15 @@ function seekUI(t) {
 }
 
 function seek(t) {
-  const w = stageWin();
-  if (w) w.__CASED.seek(Math.max(0, Math.min(S.duration, t)));
+  const at = Math.max(0, Math.min(S.duration, t));
+  // Fire and forget: a dropped seek is one stale frame, and awaiting it would
+  // stall playback behind the slowest frame in the film.
+  stageCall('seek', { t: at }).catch(() => {});
   seekUI(t);
 }
 
 function play(from = 0) {
-  const w = stageWin();
-  if (!w || !S.bus) return;
+  if (!S.bus) return;
   stop();
   S.playing = true;
   $('#play').classList.add('on');

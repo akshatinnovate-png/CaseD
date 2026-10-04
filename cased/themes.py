@@ -2,7 +2,7 @@
 cased2.0 / themes
 =================
 
-Seventy-four looks.
+Eighty-two looks.
 
 A **theme** is the palette and surface treatment: ground colour, foreground,
 two accents, film grain, scanlines, vignette, letterbox and a default
@@ -10,7 +10,7 @@ background bed. A **director** is pacing, shot grammar and transition
 vocabulary. They used to be the same object, which meant wanting the
 brutalist palette forced the brutalist edit.
 
-They are separate now, so any of the 74 themes composes with any of the
+They are separate now, so any of the 82 themes composes with any of the
 directors:
 
     python3 -m cased . --theme ember --director terminal
@@ -260,6 +260,31 @@ THEMES: dict = {
     "gazette": _t(bg="#EFEBE1", fg="#17151A", accent="#1F4FD8", accent2="#6B6560",
                   grain=0.05, vignette=0.1, bed="rulegrid", mood="cinematic",
                   family="editorial", face="serif"),
+
+    "letterpress": _t(bg="#EDE6D8", fg="#1A1713", accent="#9C2B1F", accent2="#4A5D4E",
+                      grain=0.065, vignette=0.14, bed="stipple", mood="brutalist",
+                      family="editorial", face="serif"),
+    "foulard": _t(bg="#F7F3EC", fg="#14171C", accent="#0B5D51", accent2="#C06014",
+                  grain=0.04, vignette=0.1, bed="tartan", mood="warm",
+                  family="editorial", face="serif"),
+    "vellum": _t(bg="#FAF4E6", fg="#231C12", accent="#8A5B10", accent2="#46607A",
+                 grain=0.055, vignette=0.13, bed="marble", mood="cinematic",
+                 family="editorial", face="serif"),
+    "oxblood": _t(bg="#140C0D", fg="#F3E9E4", accent="#B4341F", accent2="#C9A227",
+                  grain=0.045, vignette=0.5, bed="velvet", mood="cinematic",
+                  family="editorial", face="serif"),
+    "slateprint": _t(bg="#1A1D21", fg="#EDEFF2", accent="#E07A3F", accent2="#7FA6C9",
+                     grain=0.04, vignette=0.42, bed="concrete", mood="cinematic",
+                     family="editorial", face="serif"),
+    "almanac": _t(bg="#F1ECDF", fg="#191713", accent="#2F5E3E", accent2="#A6471C",
+                  grain=0.05, vignette=0.12, bed="topo", mood="warm",
+                  family="editorial", face="serif"),
+    "folio": _t(bg="#FFFDF8", fg="#0F0F10", accent="#1D3FBF", accent2="#8A8070",
+                grain=0.035, vignette=0.1, bed="engraving", mood="triumphant",
+                family="editorial", face="serif"),
+    "nocturne": _t(bg="#0B0D14", fg="#EFEDE8", accent="#C8A24A", accent2="#6E86A8",
+                   grain=0.045, vignette=0.52, bed="washes", mood="cinematic",
+                   family="editorial", face="serif"),
 }
 
 #: Theme used when nothing is specified.
