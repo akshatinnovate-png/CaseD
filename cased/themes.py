@@ -2,7 +2,7 @@
 cased2.0 / themes
 =================
 
-Sixty-eight looks.
+Seventy-four looks.
 
 A **theme** is the palette and surface treatment: ground colour, foreground,
 two accents, film grain, scanlines, vignette, letterbox and a default
@@ -10,7 +10,7 @@ background bed. A **director** is pacing, shot grammar and transition
 vocabulary. They used to be the same object, which meant wanting the
 brutalist palette forced the brutalist edit.
 
-They are separate now, so any of the 68 themes composes with any of the
+They are separate now, so any of the 74 themes composes with any of the
 directors:
 
     python3 -m cased . --theme ember --director terminal
@@ -36,7 +36,7 @@ from __future__ import annotations
 
 #: Sensible defaults so a theme only states what makes it different.
 _D = dict(grain=0.05, scanlines=False, vignette=1.0, letterbox=False,
-          bed="aurora", mood="cinematic", family="dark")
+          bed="aurora", mood="cinematic", family="dark", face="sans")
 
 
 def _t(**kw) -> dict:
@@ -237,6 +237,29 @@ THEMES: dict = {
     "coral": _t(bg="#FFF6F2", fg="#2B1107", accent="#EA580C", accent2="#E11D48",
                 grain=0.045, vignette=0.15, bed="risograin", mood="hype",
                 family="daylight"),
+
+    # --- editorial ----------------------------------------------------------
+    # The register a launch film for a *product* wants: paper ground, a
+    # high-contrast serif carrying the idea, one warm accent for the phrase
+    # that matters. Beds are ink-on-paper textures, never a glow.
+    "atlas": _t(bg="#F2EDE4", fg="#16130F", accent="#E2561F", accent2="#8C7A66",
+                grain=0.04, vignette=0.1, bed="contours", mood="cinematic",
+                family="editorial", face="serif"),
+    "broadsheet": _t(bg="#FBF8F2", fg="#121212", accent="#B3301C", accent2="#55514A",
+                     grain=0.045, vignette=0.1, bed="paper", mood="cinematic",
+                     family="editorial", face="serif"),
+    "manuscript": _t(bg="#F6F1E3", fg="#1B1710", accent="#7A5C2E", accent2="#3F6B52",
+                     grain=0.05, vignette=0.12, bed="crosshatch", mood="warm",
+                     family="editorial", face="serif"),
+    "inkwell": _t(bg="#12110F", fg="#F4EFE6", accent="#E2561F", accent2="#A89880",
+                  grain=0.045, vignette=0.5, bed="topo", mood="cinematic",
+                  family="editorial", face="serif"),
+    "quarto": _t(bg="#0E0F12", fg="#F2F0EC", accent="#D9B26A", accent2="#8FA2B8",
+                 grain=0.04, vignette=0.45, bed="engraving", mood="triumphant",
+                 family="editorial", face="serif"),
+    "gazette": _t(bg="#EFEBE1", fg="#17151A", accent="#1F4FD8", accent2="#6B6560",
+                  grain=0.05, vignette=0.1, bed="rulegrid", mood="cinematic",
+                  family="editorial", face="serif"),
 }
 
 #: Theme used when nothing is specified.
@@ -270,5 +293,5 @@ def to_spec(name: str | None) -> dict:
         "accent": t["accent"], "accent2": t["accent2"],
         "grain": t["grain"], "scanlines": t["scanlines"],
         "vignette": t["vignette"], "letterbox": t["letterbox"],
-        "bg_mode": t["bed"],
+        "bg_mode": t["bed"], "face": t["face"],
     }

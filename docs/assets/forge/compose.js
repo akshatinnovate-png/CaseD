@@ -606,7 +606,7 @@ export function compose(story, beatmap, {
   const themeSpec = {
     bg: t.bg, fg: t.fg, accent: t.accent, accent2: t.accent2,
     grain: t.grain, scanlines: t.scanlines, vignette: t.vignette,
-    letterbox: t.letterbox, bg_mode: t.bg_mode,
+    letterbox: t.letterbox, bg_mode: t.bg_mode, face: t.face,
   };
   // Let a strong hero language tint the second accent, but only when the theme
   // was not explicitly chosen — if someone asked for `ember`, they asked for

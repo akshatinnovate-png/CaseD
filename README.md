@@ -237,12 +237,16 @@ python3 -m cased . --list-themes
 python3 -m cased . --list-graphics
 ```
 
-### 54 themes
+### 74 themes
 
-Grouped by family — `deep`, `warm`, `neon`, `terminal`, `bright`, `nature`,
-`jewel`. Each carries its own grain, scanline and letterbox settings, a default
-background bed, and the musical mood the scorer uses when the director has no
-opinion.
+Grouped by family — `deep`, `daylight`, `editorial`, `warm`, `neon`,
+`terminal`, `bright`, `nature`, `jewel`. Each carries its own grain, scanline
+and letterbox settings, a default background bed, the display face, and the
+musical mood the scorer uses when the director has no opinion.
+
+The `editorial` family sets `face: serif`, which swaps the display type for a
+high-contrast serif register. Monospace and body copy are untouched — only the
+type that carries the idea.
 
 | Family | Themes |
 |---|---|
@@ -253,12 +257,32 @@ opinion.
 | bright | hotpink · newsprint · blueprint · riso · chalk · swiss · cyanotype |
 | nature | forest · ocean · glacier · desert · aurora_borealis · nebula · moss · storm |
 | jewel | royal · emerald · ruby · sapphire · copper · ultraviolet |
+| daylight | daylight · porcelain · linen · meadow · lagoon · lilac · blush · pewter · honey · mint · ivory · cement · sky · coral |
+| editorial | atlas · broadsheet · manuscript · inkwell · quarto · gazette |
 
-### 302 graphics primitives
+### Product UI
+
+Seven shots draw a *product* rather than a chart: window chrome with an icon
+rail, a file tree beside an editor that types itself in, a sprint board, a
+dashboard over a real trend line, an assistant panel, modules in orbit around
+the mark, a scattered stack of windows, and a two-audience split.
 
 ```
-  54  themes           palette + grain + scanlines + vignette + letterbox + bed
-  65  shot types       the compositions that carry content
+appcode  appboard  appdash  appchat  apporbit  appwindows  appsplit
+```
+
+They are built from theme variables, so one implementation reads on a cream
+ground and on a near-black one. Pass `*stars*` in a headline to set that phrase
+in the accent italic, the way the editorial register wants it.
+
+A screen whose contents were not measured carries a SAMPLE DATA stamp: an
+invented dashboard that does not say so is indistinguishable from a real one.
+
+### 316 graphics primitives
+
+```
+  74  themes           palette + grain + scanlines + vignette + letterbox + bed
+  72  shot types       the compositions that carry content
   82  background beds  one GLSL program each, compiled on demand
   45  overlay layers   particles, weather, HUD, signal, film
   28  transitions      fades, wipes, clips, blurs, springs
@@ -276,7 +300,7 @@ Everything is verifiable, not asserted:
 ```bash
 node scripts/gallery.mjs                 # render every primitive, fail on any blank
 node scripts/gallery.mjs --out /tmp/g    # ...and write the PNGs
-node scripts/gallery.mjs --only themes   # just the 54 themes
+node scripts/gallery.mjs --only themes   # just the 74 themes
 ```
 
 The self-test runs it, so a shot that throws — or silently paints an empty
@@ -444,7 +468,7 @@ examples/            the film cased2.0 made about itself
 python3 scripts/selftest.py          # full — render + the whole graphics gallery
 python3 scripts/selftest.py --fast   # skip the render and gallery stages
 python3 scripts/sync_bed.py          # after editing any shader in stage.html
-node scripts/gallery.mjs             # verify all 302 primitives render
+node scripts/gallery.mjs             # verify all 316 primitives render
 ```
 
 The self-test asserts the invariants that are easy to break by accident:

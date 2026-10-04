@@ -16,6 +16,8 @@
     --bg:#07070A; --fg:#FFFFFF; --accent:#FF4D8D; --accent2:#00E5FF;
     --muted:rgba(255,255,255,.52); --line:rgba(255,255,255,.14);
     --display:"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif;
+    --serif:"Playfair Display","Didot","Bodoni MT","Noto Serif Display",
+            "Liberation Serif","Times New Roman",Georgia,serif;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono","DejaVu Sans Mono",monospace;
   }
 
@@ -56,9 +58,13 @@
     text-transform:uppercase; color:var(--accent); font-weight:600;
   }
   .display {
+    font-family:var(--display-face,var(--display));
     font-weight:800; letter-spacing:-.045em; line-height:.88;
     text-transform:none; font-size:var(--s,120px);
   }
+  /* A high-contrast serif wants less negative tracking and more leading
+     than a grotesque, or the descenders collide. */
+  .serifset .display { font-weight:600; letter-spacing:-.012em; line-height:1.0; }
   .display.caps { text-transform:uppercase; letter-spacing:-.025em; }
   .sub { font-size:var(--s,26px); line-height:1.38; color:var(--muted); font-weight:400; }
   .mono { font-family:var(--mono); }
@@ -95,6 +101,12 @@
   .tok-c { color:rgba(255,255,255,.3); font-style:italic; }
   .tok-f { color:var(--accent2); }
   .tok-p { color:rgba(255,255,255,.44); }
+  /* Product shots put an editor on a white panel, where white-on-white
+     tokens disappear. Same roles, inked for paper. */
+  .lightset .tok-s { color:#1A7F37; }
+  .lightset .tok-n { color:#9A5B00; }
+  .lightset .tok-c { color:rgba(0,0,0,.40); }
+  .lightset .tok-p { color:rgba(0,0,0,.52); }
   .caret { display:inline-block; width:.58em; height:1.05em; background:var(--accent2);
            vertical-align:-.18em; }
 
@@ -147,6 +159,17 @@ function rng(seed) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** sRGB relative luminance, for deciding if a ground reads as light. */
+function relLum(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length < 6) return 0;
+  const c = [0, 2, 4].map(i => {
+    const v = parseInt(h.slice(i, i + 2), 16) / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 }
 
 /* --- easing ----------------------------------------------------------- */
@@ -5179,6 +5202,699 @@ function camera(shot, p, lt) {
 }
 
 /** Every camera move the engine knows, for the catalogue and the self-test. */
+
+/* =======================================================================
+   Product UI
+   -----------------------------------------------------------------------
+   The shots above draw data. These draw a *product*: window chrome, an
+   icon rail, a file tree, an editor with a cursor in it, a board, a
+   dashboard. A launch film for software mostly needs to show software,
+   and a chart of line counts is not that.
+
+   Everything here is built from theme variables rather than fixed
+   colours, so one set of components reads on a cream ground and on a
+   near-black one without a second implementation.
+
+   Screens whose contents were not measured carry a SAMPLE DATA stamp,
+   drawn by the HUD from spec.sample -- an invented dashboard that does
+   not say so is indistinguishable from a real one.
+   ======================================================================= */
+
+/** Panel surface: a hair lighter than the ground on dark, darker on light. */
+function surf(a = 1) {
+  return S.light ? `rgba(255,255,255,${a})` : `rgba(255,255,255,${0.045 * a})`;
+}
+function sunk(a = 1) {
+  return S.light ? `rgba(0,0,0,${0.035 * a})` : `rgba(0,0,0,${0.26 * a})`;
+}
+
+/**
+ * The window every product shot sits in: traffic lights, a centred title,
+ * an optional icon rail down the left. Returns the parts so each shot can
+ * fill the body and animate its own contents.
+ */
+function appShell(d, { rail = true, width = null } = {}) {
+  const win = el('div');
+  // Headlined shots push the window down so the type has room above it.
+  const top = d.title ? (S.vertical ? 58 : 60) : 50;
+  win.style.cssText =
+    `position:absolute;left:50%;top:${top}%;transform:translate(-50%,-50%);` +
+    `width:${width || (S.vertical ? 94 : 84)}%;` +
+    `border-radius:${px(18)};overflow:hidden;` +
+    `border:1px solid ${S.light ? 'rgba(0,0,0,.09)' : 'var(--line)'};` +
+    `background:${S.light ? '#FFFFFF' : 'rgba(14,15,22,.96)'};` +
+    `box-shadow:0 ${px(46)} ${px(120)} ${S.light ? 'rgba(80,60,40,.17)' : 'rgba(0,0,0,.62)'};`;
+
+  const bar = el('div');
+  bar.style.cssText =
+    `position:relative;display:flex;align-items:center;gap:${px(9)};` +
+    `padding:${px(15)} ${px(20)};background:${sunk(0.5)};` +
+    `border-bottom:1px solid ${S.light ? 'rgba(0,0,0,.07)' : 'var(--line)'};`;
+  for (const c of ['#FF5F57', '#FEBC2E', '#28C840']) {
+    const u = el('u');
+    u.style.cssText = `width:${px(12)};height:${px(12)};border-radius:50%;background:${c};display:block;`;
+    bar.appendChild(u);
+  }
+  if (d.app) {
+    const t = el('div', 'mono', esc(d.app));
+    t.style.cssText =
+      `position:absolute;left:0;right:0;text-align:center;font-size:${px(17)};` +
+      `color:var(--muted);letter-spacing:.06em;pointer-events:none;`;
+    bar.appendChild(t);
+  }
+  win.appendChild(bar);
+
+  const row = el('div');
+  row.style.cssText = `display:flex;align-items:stretch;min-height:${px(S.vertical ? 620 : 660)};`;
+  win.appendChild(row);
+
+  let railEl = null;
+  if (rail) {
+    railEl = el('div');
+    railEl.style.cssText =
+      `flex:0 0 auto;width:${px(62)};padding:${px(18)} 0;display:flex;` +
+      `flex-direction:column;align-items:center;gap:${px(16)};background:${sunk(0.4)};` +
+      `border-right:1px solid ${S.light ? 'rgba(0,0,0,.06)' : 'var(--line)'};`;
+    const dot = el('u');
+    dot.style.cssText =
+      `width:${px(26)};height:${px(26)};border-radius:50%;background:var(--accent);display:block;`;
+    railEl.appendChild(dot);
+    // Nine neutral glyph slots: the shape of a product's nav, not a claim
+    // about which features exist.
+    for (let i = 0; i < 8; i++) {
+      const g = el('u');
+      const on = i === (d.railActive ?? 2);
+      g.style.cssText =
+        `width:${px(22)};height:${px(22)};border-radius:${px(6)};display:block;` +
+        `background:${on ? 'var(--accent)' : (S.light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.14)')};` +
+        `opacity:${on ? 1 : 0.75};`;
+      railEl.appendChild(g);
+    }
+    row.appendChild(railEl);
+  }
+
+  const body = el('div');
+  body.style.cssText = `flex:1 1 auto;min-width:0;display:flex;align-items:stretch;`;
+  row.appendChild(body);
+  return { win, bar, rail: railEl, body };
+}
+
+/** A headline above a product window: serif, with the accent phrase italic. */
+function appHead(d) {
+  if (!d.title) return null;
+  const h = el('div', 'display');
+  h.style.cssText =
+    `position:absolute;left:${px(S.vertical ? 70 : 118)};top:${px(S.vertical ? 96 : 104)};` +
+    `right:${px(S.vertical ? 70 : 118)};--s:${px(S.vertical ? 62 : 84)};line-height:1.02;` +
+    `letter-spacing:-.02em;`;
+  // *word* marks the phrase that carries the idea.
+  const parts = String(d.title).split(/(\*[^*]+\*)/);
+  for (const part of parts) {
+    if (!part) continue;
+    const em = part.startsWith('*') && part.endsWith('*');
+    const span = el('span', '', esc(em ? part.slice(1, -1) : part));
+    if (em) span.style.cssText = `color:var(--accent);font-style:italic;`;
+    h.appendChild(span);
+  }
+  return h;
+}
+
+/** A row of rounded "cards" with a title and a few content lines. */
+function cardish(label, lines, { accent = false, w = null } = {}) {
+  const c = el('div');
+  c.style.cssText =
+    `flex:${w ? `0 0 ${w}` : '1 1 0'};min-width:0;padding:${px(16)} ${px(18)};` +
+    `border-radius:${px(12)};background:${surf(1)};` +
+    `border:1px solid ${S.light ? 'rgba(0,0,0,.08)' : 'var(--line)'};` +
+    (accent ? `box-shadow:inset 0 0 0 ${px(2)} var(--accent);` : '');
+  const t = el('div', '', esc(label));
+  t.style.cssText = `font-size:${px(21)};font-weight:650;letter-spacing:-.01em;margin-bottom:${px(10)};`;
+  c.appendChild(t);
+  for (const l of lines || []) {
+    const r = el('div', 'mono', esc(l));
+    r.style.cssText = `font-size:${px(16)};color:var(--muted);margin-top:${px(6)};`;
+    c.appendChild(r);
+  }
+  return c;
+}
+
+/* --- appcode: file tree + editor, with the cursor still typing --------- */
+BUILD.appcode = (d) => {
+  const n = el('div', 'layer');
+  const head = appHead(d);
+  if (head) n.appendChild(head);
+  const { win, body } = appShell(d, { rail: true });
+  n.appendChild(win);
+
+  const tree = el('div');
+  tree.style.cssText =
+    `flex:0 0 auto;width:${px(230)};padding:${px(18)} ${px(14)};` +
+    `border-right:1px solid ${S.light ? 'rgba(0,0,0,.06)' : 'var(--line)'};`;
+  const tlabel = el('div', 'mono', esc(d.root || 'src'));
+  tlabel.style.cssText =
+    `font-size:${px(14)};color:var(--muted);letter-spacing:.09em;` +
+    `text-transform:uppercase;margin-bottom:${px(12)};`;
+  tree.appendChild(tlabel);
+  const files = (d.files || []).slice(0, 9);
+  const fileRows = files.map((f, i) => {
+    const name = typeof f === 'string' ? f : f.name;
+    const depth = typeof f === 'string' ? 0 : (f.depth || 0);
+    const on = typeof f === 'object' && f.active;
+    const r = el('div', 'mono', esc(name));
+    r.style.cssText =
+      `font-size:${px(16)};padding:${px(5)} ${px(8)};border-radius:${px(6)};` +
+      `margin-left:${px(depth * 14)};white-space:nowrap;overflow:hidden;` +
+      `text-overflow:ellipsis;` +
+      (on ? `background:var(--accent);color:#fff;` : `color:var(--muted);`);
+    tree.appendChild(r);
+    return r;
+  });
+  body.appendChild(tree);
+
+  const pane = el('div');
+  pane.style.cssText = `flex:1 1 auto;min-width:0;display:flex;flex-direction:column;`;
+  const tabs = el('div');
+  tabs.style.cssText =
+    `display:flex;align-items:center;gap:${px(10)};padding:${px(12)} ${px(18)};` +
+    `border-bottom:1px solid ${S.light ? 'rgba(0,0,0,.06)' : 'var(--line)'};`;
+  const tab = el('div', 'mono', esc(d.tab || (files[0] && (files[0].name || files[0])) || 'main'));
+  tab.style.cssText =
+    `font-size:${px(16)};padding:${px(7)} ${px(14)};border-radius:${px(7)};` +
+    `background:${sunk(0.7)};`;
+  tabs.appendChild(tab);
+  const spacer = el('div');
+  spacer.style.cssText = 'flex:1 1 auto;';
+  tabs.appendChild(spacer);
+  if (d.branch) {
+    const br = el('div', 'mono', esc('⎇ ' + d.branch));
+    br.style.cssText = `font-size:${px(15)};color:var(--muted);padding:${px(7)} ${px(12)};`;
+    tabs.appendChild(br);
+  }
+  const run = el('div', 'mono', esc('▶ ' + (d.action || 'Run')));
+  run.style.cssText =
+    `font-size:${px(15)};padding:${px(7)} ${px(16)};border-radius:999px;` +
+    `background:var(--accent);color:#fff;font-weight:600;`;
+  tabs.appendChild(run);
+  pane.appendChild(tabs);
+
+  const codeWrap = el('div');
+  codeWrap.style.cssText = `padding:${px(18)} ${px(20)};flex:1 1 auto;`;
+  const lines = (d.code || []).slice(0, 10);
+  const codeRows = lines.map((text, i) => {
+    const r = el('div');
+    r.style.cssText = `display:flex;gap:${px(16)};align-items:baseline;`;
+    const num = el('span', 'mono', String(i + 1));
+    num.style.cssText = `font-size:${px(15)};color:var(--faint,var(--muted));opacity:.6;flex:0 0 ${px(26)};text-align:right;`;
+    const t = el('span', 'mono');
+    t.style.cssText = `font-size:${px(17)};line-height:1.62;white-space:pre;`;
+    t.innerHTML = highlight(text);
+    r.append(num, t);
+    codeWrap.appendChild(r);
+    return { r, t, text };
+  });
+  const caret = el('u');
+  caret.style.cssText =
+    `display:inline-block;width:${px(2)};height:${px(20)};background:var(--accent);` +
+    `vertical-align:-${px(3)};`;
+  pane.appendChild(codeWrap);
+  body.appendChild(pane);
+
+  return {
+    node: n,
+    update(lt) {
+      if (head) {
+        head.style.opacity = seg(lt, 0, .45).toFixed(3);
+        head.style.transform = `translateY(${((1 - seg(lt, 0, .45, E.expo)) * 22).toFixed(1)}px)`;
+      }
+      const p = seg(lt, 0.08, 0.6, E.expo);
+      win.style.opacity = p.toFixed(3);
+      win.style.transform = `translate(-50%,-50%) scale(${lerp(0.975, 1, p).toFixed(4)})`;
+      fileRows.forEach((r, i) => { r.style.opacity = seg(lt, 0.2 + i * 0.03, 0.5 + i * 0.03).toFixed(3); });
+      // The editor types itself in, line by line, with the caret on the
+      // line being written -- deterministic, so every frame is the same.
+      const total = codeRows.reduce((a, c) => a + c.text.length, 0) || 1;
+      const typed = Math.round(seg(lt, 0.26, 0.92) * total);
+      let used = 0;
+      codeRows.forEach(({ r, t, text }) => {
+        const take = clamp(typed - used, 0, text.length);
+        used += text.length;
+        r.style.opacity = take > 0 ? '1' : '0';
+        t.innerHTML = highlight(text.slice(0, take));
+        if (take > 0 && take < text.length) t.appendChild(caret);
+      });
+    },
+  };
+};
+
+/* --- appboard: the sprint board --------------------------------------- */
+BUILD.appboard = (d) => {
+  const n = el('div', 'layer');
+  const head = appHead(d);
+  if (head) n.appendChild(head);
+  const { win, body } = appShell(d, { rail: true });
+  n.appendChild(win);
+
+  const wrap = el('div');
+  wrap.style.cssText = `flex:1 1 auto;padding:${px(22)} ${px(24)};min-width:0;`;
+  if (d.sprint) {
+    const s = el('div', '', esc(d.sprint));
+    s.style.cssText = `font-size:${px(26)};font-weight:650;letter-spacing:-.015em;margin-bottom:${px(18)};`;
+    wrap.appendChild(s);
+  }
+  const cols = el('div');
+  cols.style.cssText = `display:flex;gap:${px(14)};align-items:flex-start;`;
+  const cardEls = [];
+  for (const col of (d.columns || []).slice(0, 4)) {
+    const c = el('div');
+    c.style.cssText = `flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:${px(10)};`;
+    const t = el('div', 'mono', esc(col.name || ''));
+    t.style.cssText =
+      `font-size:${px(14)};letter-spacing:.1em;text-transform:uppercase;color:var(--muted);`;
+    c.appendChild(t);
+    for (const card of (col.cards || []).slice(0, 3)) {
+      const k = el('div');
+      k.style.cssText =
+        `padding:${px(13)} ${px(14)};border-radius:${px(10)};background:${surf(1)};` +
+        `border:1px solid ${S.light ? 'rgba(0,0,0,.08)' : 'var(--line)'};`;
+      const label = el('div', '', esc(typeof card === 'string' ? card : card.text));
+      label.style.cssText = `font-size:${px(18)};font-weight:550;line-height:1.3;`;
+      k.appendChild(label);
+      const tagText = typeof card === 'object' ? card.tag : null;
+      if (tagText) {
+        const tg = el('div', 'mono', esc(tagText));
+        tg.style.cssText =
+          `margin-top:${px(9)};font-size:${px(13)};letter-spacing:.08em;` +
+          `text-transform:uppercase;color:var(--accent);`;
+        k.appendChild(tg);
+      }
+      c.appendChild(k);
+      cardEls.push(k);
+    }
+    cols.appendChild(c);
+  }
+  wrap.appendChild(cols);
+  body.appendChild(wrap);
+
+  return {
+    node: n,
+    update(lt) {
+      if (head) head.style.opacity = seg(lt, 0, .45).toFixed(3);
+      const p = seg(lt, 0.08, 0.6, E.expo);
+      win.style.opacity = p.toFixed(3);
+      win.style.transform = `translate(-50%,-50%) scale(${lerp(0.975, 1, p).toFixed(4)})`;
+      cardEls.forEach((k, i) => {
+        const q = seg(lt, 0.26 + i * 0.045, 0.26 + i * 0.045 + 0.4, E.expo);
+        k.style.opacity = q.toFixed(3);
+        k.style.transform = `translateY(${((1 - q) * 16).toFixed(1)}px)`;
+      });
+    },
+  };
+};
+
+/* --- appdash: metric cards over a trend line --------------------------- */
+BUILD.appdash = (d) => {
+  const n = el('div', 'layer');
+  const head = appHead(d);
+  if (head) n.appendChild(head);
+  const { win, body } = appShell(d, { rail: true });
+  n.appendChild(win);
+
+  const wrap = el('div');
+  wrap.style.cssText = `flex:1 1 auto;padding:${px(24)} ${px(26)};min-width:0;`;
+  const big = el('div');
+  big.style.cssText = `display:flex;align-items:baseline;gap:${px(18)};`;
+  const val = el('div', '', esc(d.value || ''));
+  val.style.cssText =
+    `font-size:${px(S.vertical ? 74 : 96)};font-weight:700;letter-spacing:-.035em;` +
+    `font-variant-numeric:tabular-nums;`;
+  big.appendChild(val);
+  if (d.delta) {
+    const dl = el('div', '', esc(d.delta));
+    dl.style.cssText =
+      `font-size:${px(32)};color:var(--accent);font-weight:650;font-variant-numeric:tabular-nums;`;
+    big.appendChild(dl);
+  }
+  wrap.appendChild(big);
+  if (d.label) {
+    const lb = el('div', 'mono', esc(d.label));
+    lb.style.cssText =
+      `font-size:${px(15)};letter-spacing:.1em;text-transform:uppercase;` +
+      `color:var(--muted);margin-top:${px(6)};`;
+    wrap.appendChild(lb);
+  }
+
+  // The trend line: a real polyline over the supplied series.
+  const series = (d.series || []).map(Number).filter(v => Number.isFinite(v));
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  const W = 1000, H = 230;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = `display:block;width:100%;height:${px(190)};margin-top:${px(20)};overflow:visible;`;
+  let path = null, area = null;
+  if (series.length > 1) {
+    const lo = Math.min(...series), hi = Math.max(...series);
+    const span = (hi - lo) || 1;
+    const pts = series.map((v, i) => [
+      (i / (series.length - 1)) * W,
+      H - ((v - lo) / span) * (H - 24) - 12,
+    ]);
+    const dAttr = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+    area = document.createElementNS(svgNS, 'path');
+    area.setAttribute('d', `${dAttr} L${W} ${H} L0 ${H} Z`);
+    area.setAttribute('fill', 'var(--accent)');
+    area.setAttribute('opacity', '0.1');
+    svg.appendChild(area);
+    path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('d', dAttr);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'var(--accent)');
+    path.setAttribute('stroke-width', '3');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(path);
+  }
+  wrap.appendChild(svg);
+
+  const cards = el('div');
+  cards.style.cssText = `display:flex;gap:${px(12)};margin-top:${px(20)};`;
+  const cardEls = (d.cards || []).slice(0, 4).map(c => {
+    const e = cardish(c.label || c.name || '', [c.value || '']);
+    cards.appendChild(e);
+    return e;
+  });
+  wrap.appendChild(cards);
+  body.appendChild(wrap);
+
+  return {
+    node: n,
+    update(lt) {
+      if (head) head.style.opacity = seg(lt, 0, .45).toFixed(3);
+      const p = seg(lt, 0.08, 0.6, E.expo);
+      win.style.opacity = p.toFixed(3);
+      win.style.transform = `translate(-50%,-50%) scale(${lerp(0.975, 1, p).toFixed(4)})`;
+      val.style.opacity = seg(lt, 0.22, 0.6).toFixed(3);
+      if (path) {
+        const len = 2400;
+        const q = seg(lt, 0.3, 0.9, E.expo);
+        path.setAttribute('stroke-dasharray', String(len));
+        path.setAttribute('stroke-dashoffset', String(len * (1 - q)));
+        if (area) area.setAttribute('opacity', (0.1 * q).toFixed(3));
+      }
+      cardEls.forEach((e, i) => {
+        e.style.opacity = seg(lt, 0.5 + i * 0.05, 0.85 + i * 0.05).toFixed(3);
+      });
+    },
+  };
+};
+
+/* --- appchat: the assistant panel -------------------------------------- */
+BUILD.appchat = (d) => {
+  const n = el('div', 'layer');
+  const head = appHead(d);
+  if (head) n.appendChild(head);
+  const { win, body } = appShell(d, { rail: true });
+  n.appendChild(win);
+
+  const wrap = el('div');
+  wrap.style.cssText =
+    `flex:1 1 auto;padding:${px(22)} ${px(26)};min-width:0;display:flex;` +
+    `flex-direction:column;gap:${px(14)};`;
+  if (d.agent) {
+    const a = el('div');
+    a.style.cssText = `display:flex;align-items:center;gap:${px(12)};margin-bottom:${px(6)};`;
+    const av = el('u');
+    av.style.cssText = `width:${px(30)};height:${px(30)};border-radius:${px(9)};background:var(--accent);display:block;`;
+    const nm = el('div', '', esc(d.agent));
+    nm.style.cssText = `font-size:${px(22)};font-weight:650;letter-spacing:-.01em;`;
+    a.append(av, nm);
+    wrap.appendChild(a);
+  }
+  const bubbles = (d.messages || []).slice(0, 4).map((m, i) => {
+    const mine = typeof m === 'object' && m.from === 'you';
+    const text = typeof m === 'string' ? m : m.text;
+    const b = el('div', '', esc(text));
+    b.style.cssText =
+      `align-self:${mine ? 'flex-end' : 'flex-start'};max-width:78%;` +
+      `padding:${px(14)} ${px(18)};border-radius:${px(14)};font-size:${px(20)};` +
+      `line-height:1.4;` +
+      (mine
+        ? `background:var(--accent);color:#fff;`
+        : `background:${surf(1)};border:1px solid ${S.light ? 'rgba(0,0,0,.08)' : 'var(--line)'};`);
+    wrap.appendChild(b);
+    return b;
+  });
+  const prompt = el('div');
+  prompt.style.cssText =
+    `margin-top:auto;padding:${px(14)} ${px(18)};border-radius:${px(12)};` +
+    `background:${sunk(0.6)};font-size:${px(18)};color:var(--muted);` +
+    `display:flex;align-items:center;gap:${px(10)};`;
+  prompt.appendChild(el('span', '', d.prompt || 'Ask anything'));
+  const car = el('u');
+  car.style.cssText = `width:${px(2)};height:${px(20)};background:var(--accent);display:block;`;
+  prompt.appendChild(car);
+  wrap.appendChild(prompt);
+  body.appendChild(wrap);
+
+  return {
+    node: n,
+    update(lt) {
+      if (head) head.style.opacity = seg(lt, 0, .45).toFixed(3);
+      const p = seg(lt, 0.08, 0.6, E.expo);
+      win.style.opacity = p.toFixed(3);
+      win.style.transform = `translate(-50%,-50%) scale(${lerp(0.975, 1, p).toFixed(4)})`;
+      bubbles.forEach((b, i) => {
+        const q = seg(lt, 0.24 + i * 0.13, 0.24 + i * 0.13 + 0.34, E.expo);
+        b.style.opacity = q.toFixed(3);
+        b.style.transform = `translateY(${((1 - q) * 14).toFixed(1)}px)`;
+      });
+      car.style.opacity = (lt * 9 % 1 > 0.5 ? 1 : 0).toFixed(0);
+    },
+  };
+};
+
+/* --- apporbit: modules in orbit around the mark ------------------------ */
+BUILD.apporbit = (d) => {
+  const n = el('div', 'layer');
+  const head = appHead(d);
+  if (head) n.appendChild(head);
+
+  const stage = el('div');
+  stage.style.cssText = `position:absolute;inset:0;`;
+  n.appendChild(stage);
+
+  const cx = 50, cy = 56;
+  const mark = el('div');
+  const markSize = S.vertical ? 140 : 180;
+  mark.style.cssText =
+    `position:absolute;left:${cx}%;top:${cy}%;width:${px(markSize)};height:${px(markSize)};` +
+    `margin-left:${px(-markSize / 2)};margin-top:${px(-markSize / 2)};border-radius:50%;` +
+    `background:var(--accent);display:flex;align-items:center;justify-content:center;`;
+  const markText = el('div', 'mono', esc((d.mark || '').slice(0, 2).toUpperCase()));
+  markText.style.cssText = `font-size:${px(44)};font-weight:700;color:#fff;letter-spacing:-.02em;`;
+  mark.appendChild(markText);
+  stage.appendChild(mark);
+
+  // Two rings, so eight modules do not crowd one circle.
+  const items = (d.items || []).slice(0, 8);
+  const rings = [
+    { r: S.vertical ? 21 : 19, n: Math.min(items.length, 4) },
+    { r: S.vertical ? 33 : 30, n: Math.max(0, items.length - 4) },
+  ];
+  for (const ring of rings) {
+    if (!ring.n) continue;
+    const o = el('div');
+    const d2 = ring.r * 2;
+    o.style.cssText =
+      `position:absolute;left:${cx}%;top:${cy}%;width:${d2}%;padding-bottom:${d2}%;` +
+      `height:0;transform:translate(-50%,-50%);border-radius:50%;` +
+      `border:1px solid var(--line);opacity:.5;`;
+    stage.appendChild(o);
+  }
+
+  const pills = items.map((it, i) => {
+    const ringIdx = i < 4 ? 0 : 1;
+    const within = ringIdx === 0 ? i : i - 4;
+    const count = rings[ringIdx].n;
+    const ang = (within / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2 + (ringIdx ? 0.4 : 0);
+    const rr = rings[ringIdx].r;
+    const x = cx + Math.cos(ang) * rr * (S.vertical ? 1 : 1.22);
+    const y = cy + Math.sin(ang) * rr;
+    const name = typeof it === 'string' ? it : it.name;
+    const p = el('div');
+    p.style.cssText =
+      `position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);` +
+      `display:flex;align-items:center;gap:${px(12)};white-space:nowrap;` +
+      `padding:${px(16)} ${px(32)} ${px(16)} ${px(16)};border-radius:999px;` +
+      `background:${S.light ? '#FFFFFF' : 'rgba(20,21,30,.96)'};` +
+      `border:1px solid ${S.light ? 'rgba(0,0,0,.08)' : 'var(--line)'};` +
+      `box-shadow:0 ${px(14)} ${px(34)} ${S.light ? 'rgba(80,60,40,.14)' : 'rgba(0,0,0,.5)'};`;
+    const ic = el('u');
+    ic.style.cssText =
+      `width:${px(46)};height:${px(46)};border-radius:${px(13)};display:block;` +
+      `background:var(--accent);opacity:.2;`;
+    const tx = el('span', '', esc(name));
+    tx.style.cssText = `font-size:${px(36)};font-weight:600;letter-spacing:-.015em;`;
+    p.append(ic, tx);
+    stage.appendChild(p);
+    return p;
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      if (head) head.style.opacity = seg(lt, 0, .4).toFixed(3);
+      const m = seg(lt, 0.05, 0.5, E.expo);
+      mark.style.opacity = m.toFixed(3);
+      mark.style.transform = `scale(${lerp(0.6, 1, m).toFixed(3)})`;
+      pills.forEach((p, i) => {
+        const q = seg(lt, 0.2 + i * 0.06, 0.2 + i * 0.06 + 0.42, E.expo);
+        p.style.opacity = q.toFixed(3);
+        p.style.transform = `translate(-50%,-50%) scale(${lerp(0.82, 1, q).toFixed(3)})`;
+      });
+    },
+  };
+};
+
+/* --- appwindows: the mess this replaces -------------------------------- */
+BUILD.appwindows = (d) => {
+  const n = el('div', 'layer');
+  const stage = el('div');
+  stage.style.cssText = `position:absolute;inset:0;overflow:hidden;`;
+  n.appendChild(stage);
+
+  // Deterministic scatter: same seed, same arrangement.
+  const r = rng(d.seed || 7);
+  const count = Math.min(d.count || 10, 14);
+  const cards = [];
+  for (let i = 0; i < count; i++) {
+    const w = 30 + r() * 20;
+    const c = el('div');
+    c.style.cssText =
+      `position:absolute;left:${(2 + r() * 72).toFixed(1)}%;top:${(2 + r() * 76).toFixed(1)}%;` +
+      `width:${w.toFixed(1)}%;border-radius:${px(10)};overflow:hidden;` +
+      `background:${S.light ? '#FFFFFF' : 'rgba(20,21,30,.95)'};` +
+      `border:1px solid ${S.light ? 'rgba(0,0,0,.14)' : 'var(--line)'};` +
+      `box-shadow:0 ${px(18)} ${px(44)} ${S.light ? 'rgba(70,50,30,.26)' : 'rgba(0,0,0,.55)'};` +
+      `transform:rotate(${(r() * 10 - 5).toFixed(1)}deg);`;
+    const bar = el('div');
+    bar.style.cssText =
+      `height:${px(30)};background:${sunk(0.6)};display:flex;align-items:center;` +
+      `gap:${px(5)};padding:0 ${px(9)};`;
+    for (let k = 0; k < 3; k++) {
+      const u = el('u');
+      u.style.cssText =
+        `width:${px(6)};height:${px(6)};border-radius:50%;display:block;` +
+        `background:${S.light ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.22)'};`;
+      bar.appendChild(u);
+    }
+    c.appendChild(bar);
+    const bodyEl = el('div');
+    bodyEl.style.cssText = `padding:${px(12)};display:grid;gap:${px(7)};`;
+    for (let k = 0; k < 3 + Math.floor(r() * 3); k++) {
+      const line = el('u');
+      line.style.cssText =
+        `display:block;height:${px(6)};border-radius:${px(3)};` +
+        `width:${(32 + r() * 60).toFixed(0)}%;` +
+        `background:${S.light ? 'rgba(0,0,0,.14)' : 'rgba(255,255,255,.12)'};`;
+      bodyEl.appendChild(line);
+    }
+    c.appendChild(bodyEl);
+    stage.appendChild(c);
+    cards.push({ c, delay: r() });
+  }
+
+  const cap = el('div', 'display');
+  cap.style.cssText =
+    `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;` +
+    `padding:${px(26)} ${px(40)};` +
+    `background:${S.light ? 'rgba(242,237,228,.92)' : 'rgba(6,7,12,.84)'};` +
+    `border-radius:${px(18)};` +
+    `--s:${px(S.vertical ? 76 : 108)};text-align:center;line-height:1.02;` +
+    `letter-spacing:-.025em;width:86%;`;
+  const parts = String(d.text || '').split(/(\*[^*]+\*)/);
+  for (const part of parts) {
+    if (!part) continue;
+    const em = part.startsWith('*') && part.endsWith('*');
+    const span = el('span', '', esc(em ? part.slice(1, -1) : part));
+    if (em) span.style.cssText = `color:var(--accent);font-style:italic;`;
+    cap.appendChild(span);
+  }
+  n.appendChild(cap);
+
+  return {
+    node: n,
+    update(lt) {
+      cards.forEach(({ c, delay }, i) => {
+        const q = seg(lt, 0.02 + delay * 0.3, 0.02 + delay * 0.3 + 0.4, E.expo);
+        c.style.opacity = (q * (S.light ? 0.92 : 0.88)).toFixed(3);
+        c.style.transform =
+          c.style.transform.replace(/ scale\([^)]*\)/, '') + ` scale(${lerp(0.9, 1, q).toFixed(3)})`;
+      });
+      const p = seg(lt, 0.32, 0.8, E.expo);
+      cap.style.opacity = p.toFixed(3);
+      cap.style.transform = `translate(-50%,-50%) scale(${lerp(0.96, 1, p).toFixed(4)})`;
+    },
+  };
+};
+
+/* --- appsplit: two audiences, one frame -------------------------------- */
+BUILD.appsplit = (d) => {
+  const n = el('div', 'layer');
+  const halves = [d.left || {}, d.right || {}].map((side, idx) => {
+    const h = el('div');
+    const dark = idx === 1;
+    h.style.cssText =
+      `position:absolute;top:0;bottom:0;${idx ? 'right' : 'left'}:0;width:50%;` +
+      `padding:${px(S.vertical ? 60 : 92)};display:flex;flex-direction:column;` +
+      `justify-content:center;gap:${px(18)};` +
+      `background:${dark ? (S.light ? '#13110F' : 'rgba(0,0,0,.55)') : (S.light ? 'transparent' : 'rgba(255,255,255,.03)')};` +
+      `color:${dark && S.light ? '#F6F1E8' : 'inherit'};` +
+      `border-${idx ? 'left' : 'right'}:1px solid ${S.light ? 'rgba(0,0,0,.14)' : 'rgba(255,255,255,.14)'};`;
+    const k = el('div', 'mono', esc(side.kicker || ''));
+    k.style.cssText =
+      `font-size:${px(15)};letter-spacing:.14em;text-transform:uppercase;color:var(--accent);`;
+    h.appendChild(k);
+    const t = el('div', 'display');
+    t.style.cssText = `--s:${px(S.vertical ? 46 : 58)};line-height:1.06;letter-spacing:-.02em;`;
+    const parts = String(side.text || '').split(/(\*[^*]+\*)/);
+    for (const part of parts) {
+      if (!part) continue;
+      const em = part.startsWith('*') && part.endsWith('*');
+      const span = el('span', '', esc(em ? part.slice(1, -1) : part));
+      if (em) span.style.cssText = `color:var(--accent);font-style:italic;`;
+      t.appendChild(span);
+    }
+    h.appendChild(t);
+    const rows = (side.items || []).slice(0, 4).map(it => {
+      const r = el('div', 'mono', esc(it));
+      r.style.cssText =
+        `font-size:${px(19)};padding:${px(11)} 0;opacity:.72;` +
+        `border-top:1px solid ${dark && S.light ? 'rgba(255,255,255,.16)' : 'var(--line)'};`;
+      h.appendChild(r);
+      return r;
+    });
+    n.appendChild(h);
+    return { h, k, t, rows };
+  });
+
+  return {
+    node: n,
+    update(lt) {
+      halves.forEach((side, i) => {
+        const base = 0.06 + i * 0.12;
+        const p = seg(lt, base, base + 0.45, E.expo);
+        side.k.style.opacity = p.toFixed(3);
+        side.t.style.opacity = p.toFixed(3);
+        side.t.style.transform = `translateY(${((1 - p) * 18).toFixed(1)}px)`;
+        side.rows.forEach((r, j) => {
+          r.style.opacity = (seg(lt, base + 0.2 + j * 0.07, base + 0.6 + j * 0.07) * 0.72).toFixed(3);
+        });
+      });
+    },
+  };
+};
+
 const CAM_NAMES = ['push', 'pull', 'left', 'right', 'up', 'down', 'pushleft',
                    'pushright', 'pullup', 'arc', 'sway', 'breathe', 'tilt',
                    'handheld', 'rotate', 'driftin', 'driftout', 'floatup',
@@ -5378,6 +6094,18 @@ async function load(spec) {
   root.setProperty('--muted', rgba(th.fg, 0.55));
   root.setProperty('--line', rgba(th.fg, 0.15));
   root.setProperty('--grain-src', grainURI(spec.seed || 1));
+  // An editorial theme swaps the display face for the serif register. Body
+  // copy and monospace are untouched -- only the type that carries the idea.
+  // Product surfaces are built relative to the ground, so the shell needs to
+  // know which way round it is: a panel is lighter than a dark page and darker
+  // than a light one. This must be set before build(), which constructs the
+  // shots -- setting it later leaves every panel dark on a cream theme, with
+  // near-black body text on it.
+  S.light = relLum(th.bg) > 0.45;
+  S.serif = th.face === 'serif';
+  stage.classList.toggle('serifset', S.serif);
+  stage.classList.toggle('lightset', S.light);
+  root.setProperty('--display-face', S.serif ? 'var(--serif)' : '"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif');
 
   const bgc = document.getElementById('bg');
   S.BW = Math.max(2, Math.round(S.W * BG_SCALE));

@@ -9,6 +9,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "aurora",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -22,6 +23,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "smoke",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -35,6 +37,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "caustics",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -48,6 +51,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "grid",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -61,6 +65,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "smoke",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -74,6 +79,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "corona",
+  "face": "sans",
   "mood": "triumphant",
   "family": "deep"
  },
@@ -87,6 +93,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "plates",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -100,6 +107,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "aurora",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -113,6 +121,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "stars",
+  "face": "sans",
   "mood": "triumphant",
   "family": "warm"
  },
@@ -126,6 +135,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "magma",
+  "face": "sans",
   "mood": "hype",
   "family": "warm"
  },
@@ -139,6 +149,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "dunes",
+  "face": "sans",
   "mood": "warm",
   "family": "warm"
  },
@@ -152,6 +163,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "contours",
+  "face": "sans",
   "mood": "warm",
   "family": "warm"
  },
@@ -165,6 +177,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "gradientfield",
+  "face": "sans",
   "mood": "warm",
   "family": "warm"
  },
@@ -178,6 +191,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "embers",
+  "face": "sans",
   "mood": "warm",
   "family": "warm"
  },
@@ -191,6 +205,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "noisefield",
+  "face": "sans",
   "mood": "warm",
   "family": "warm"
  },
@@ -204,6 +219,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "rays",
+  "face": "sans",
   "mood": "triumphant",
   "family": "warm"
  },
@@ -217,6 +233,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "rings",
+  "face": "sans",
   "mood": "hype",
   "family": "neon"
  },
@@ -230,6 +247,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "sungrid",
+  "face": "sans",
   "mood": "retro",
   "family": "neon"
  },
@@ -243,6 +261,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "checkerhorizon",
+  "face": "sans",
   "mood": "retro",
   "family": "neon"
  },
@@ -256,6 +275,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "circuit",
+  "face": "sans",
   "mood": "hype",
   "family": "neon"
  },
@@ -269,6 +289,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "interference",
+  "face": "sans",
   "mood": "hype",
   "family": "neon"
  },
@@ -282,6 +303,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "plasma",
+  "face": "sans",
   "mood": "hype",
   "family": "neon"
  },
@@ -295,6 +317,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "warp",
+  "face": "sans",
   "mood": "hype",
   "family": "neon"
  },
@@ -308,6 +331,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "sungrid",
+  "face": "sans",
   "mood": "hype",
   "family": "neon"
  },
@@ -321,6 +345,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "grid",
+  "face": "sans",
   "mood": "retro",
   "family": "terminal"
  },
@@ -334,6 +359,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "scanfield",
+  "face": "sans",
   "mood": "retro",
   "family": "terminal"
  },
@@ -347,6 +373,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "dotmatrix",
+  "face": "sans",
   "mood": "retro",
   "family": "terminal"
  },
@@ -360,6 +387,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "static",
+  "face": "sans",
   "mood": "retro",
   "family": "terminal"
  },
@@ -373,6 +401,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "rain",
+  "face": "sans",
   "mood": "retro",
   "family": "terminal"
  },
@@ -386,6 +415,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "lissajous",
+  "face": "sans",
   "mood": "retro",
   "family": "terminal"
  },
@@ -399,6 +429,7 @@
   "vignette": 0.25,
   "letterbox": false,
   "bg_mode": "halftone",
+  "face": "sans",
   "mood": "brutalist",
   "family": "bright"
  },
@@ -412,6 +443,7 @@
   "vignette": 0.2,
   "letterbox": false,
   "bg_mode": "halftone",
+  "face": "sans",
   "mood": "brutalist",
   "family": "bright"
  },
@@ -425,6 +457,7 @@
   "vignette": 0.4,
   "letterbox": false,
   "bg_mode": "draft",
+  "face": "sans",
   "mood": "cinematic",
   "family": "bright"
  },
@@ -438,6 +471,7 @@
   "vignette": 0.15,
   "letterbox": false,
   "bg_mode": "risograin",
+  "face": "sans",
   "mood": "brutalist",
   "family": "bright"
  },
@@ -451,6 +485,7 @@
   "vignette": 0.5,
   "letterbox": false,
   "bg_mode": "chalkdust",
+  "face": "sans",
   "mood": "warm",
   "family": "bright"
  },
@@ -464,6 +499,7 @@
   "vignette": 0.12,
   "letterbox": false,
   "bg_mode": "rulegrid",
+  "face": "sans",
   "mood": "brutalist",
   "family": "bright"
  },
@@ -477,6 +513,7 @@
   "vignette": 0.45,
   "letterbox": false,
   "bg_mode": "washes",
+  "face": "sans",
   "mood": "cinematic",
   "family": "bright"
  },
@@ -490,6 +527,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "canopy",
+  "face": "sans",
   "mood": "warm",
   "family": "nature"
  },
@@ -503,6 +541,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "waves",
+  "face": "sans",
   "mood": "cinematic",
   "family": "nature"
  },
@@ -516,6 +555,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "crystal",
+  "face": "sans",
   "mood": "cinematic",
   "family": "nature"
  },
@@ -529,6 +569,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "dunes",
+  "face": "sans",
   "mood": "warm",
   "family": "nature"
  },
@@ -542,6 +583,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "curtains",
+  "face": "sans",
   "mood": "cinematic",
   "family": "nature"
  },
@@ -555,6 +597,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "nebula",
+  "face": "sans",
   "mood": "cinematic",
   "family": "nature"
  },
@@ -568,6 +611,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "noisefield",
+  "face": "sans",
   "mood": "warm",
   "family": "nature"
  },
@@ -581,6 +625,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "rainfall",
+  "face": "sans",
   "mood": "cinematic",
   "family": "nature"
  },
@@ -594,6 +639,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "silk",
+  "face": "sans",
   "mood": "triumphant",
   "family": "jewel"
  },
@@ -607,6 +653,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "facets",
+  "face": "sans",
   "mood": "triumphant",
   "family": "jewel"
  },
@@ -620,6 +667,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "velvet",
+  "face": "sans",
   "mood": "cinematic",
   "family": "jewel"
  },
@@ -633,6 +681,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "facets",
+  "face": "sans",
   "mood": "cinematic",
   "family": "jewel"
  },
@@ -646,6 +695,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "brushed",
+  "face": "sans",
   "mood": "warm",
   "family": "jewel"
  },
@@ -659,6 +709,7 @@
   "vignette": 1.0,
   "letterbox": false,
   "bg_mode": "bloom",
+  "face": "sans",
   "mood": "hype",
   "family": "jewel"
  },
@@ -672,6 +723,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "stars",
+  "face": "sans",
   "mood": "triumphant",
   "family": "deep"
  },
@@ -685,6 +737,7 @@
   "vignette": 1.0,
   "letterbox": true,
   "bg_mode": "aurora",
+  "face": "sans",
   "mood": "cinematic",
   "family": "deep"
  },
@@ -698,6 +751,7 @@
   "vignette": 0.85,
   "letterbox": true,
   "bg_mode": "aurora",
+  "face": "sans",
   "mood": "warm",
   "family": "warm"
  },
@@ -711,6 +765,7 @@
   "vignette": 0.12,
   "letterbox": false,
   "bg_mode": "rulegrid",
+  "face": "sans",
   "mood": "cinematic",
   "family": "daylight"
  },
@@ -724,6 +779,7 @@
   "vignette": 0.14,
   "letterbox": false,
   "bg_mode": "paper",
+  "face": "sans",
   "mood": "cinematic",
   "family": "daylight"
  },
@@ -737,6 +793,7 @@
   "vignette": 0.16,
   "letterbox": false,
   "bg_mode": "crosshatch",
+  "face": "sans",
   "mood": "warm",
   "family": "daylight"
  },
@@ -750,6 +807,7 @@
   "vignette": 0.15,
   "letterbox": false,
   "bg_mode": "canopy",
+  "face": "sans",
   "mood": "warm",
   "family": "daylight"
  },
@@ -763,6 +821,7 @@
   "vignette": 0.14,
   "letterbox": false,
   "bg_mode": "ripples",
+  "face": "sans",
   "mood": "cinematic",
   "family": "daylight"
  },
@@ -776,6 +835,7 @@
   "vignette": 0.15,
   "letterbox": false,
   "bg_mode": "washes",
+  "face": "sans",
   "mood": "cinematic",
   "family": "daylight"
  },
@@ -789,6 +849,7 @@
   "vignette": 0.15,
   "letterbox": false,
   "bg_mode": "stipple",
+  "face": "sans",
   "mood": "hype",
   "family": "daylight"
  },
@@ -802,6 +863,7 @@
   "vignette": 0.14,
   "letterbox": false,
   "bg_mode": "concrete",
+  "face": "sans",
   "mood": "brutalist",
   "family": "daylight"
  },
@@ -815,6 +877,7 @@
   "vignette": 0.17,
   "letterbox": false,
   "bg_mode": "dunes",
+  "face": "sans",
   "mood": "warm",
   "family": "daylight"
  },
@@ -828,6 +891,7 @@
   "vignette": 0.14,
   "letterbox": false,
   "bg_mode": "scales",
+  "face": "sans",
   "mood": "cinematic",
   "family": "daylight"
  },
@@ -841,6 +905,7 @@
   "vignette": 0.16,
   "letterbox": false,
   "bg_mode": "engraving",
+  "face": "sans",
   "mood": "triumphant",
   "family": "daylight"
  },
@@ -854,6 +919,7 @@
   "vignette": 0.15,
   "letterbox": false,
   "bg_mode": "brushed",
+  "face": "sans",
   "mood": "brutalist",
   "family": "daylight"
  },
@@ -867,6 +933,7 @@
   "vignette": 0.13,
   "letterbox": false,
   "bg_mode": "clouds",
+  "face": "sans",
   "mood": "triumphant",
   "family": "daylight"
  },
@@ -880,7 +947,92 @@
   "vignette": 0.15,
   "letterbox": false,
   "bg_mode": "risograin",
+  "face": "sans",
   "mood": "hype",
   "family": "daylight"
+ },
+ "atlas": {
+  "bg": "#F2EDE4",
+  "fg": "#16130F",
+  "accent": "#E2561F",
+  "accent2": "#8C7A66",
+  "grain": 0.04,
+  "scanlines": false,
+  "vignette": 0.1,
+  "letterbox": false,
+  "bg_mode": "contours",
+  "face": "serif",
+  "mood": "cinematic",
+  "family": "editorial"
+ },
+ "broadsheet": {
+  "bg": "#FBF8F2",
+  "fg": "#121212",
+  "accent": "#B3301C",
+  "accent2": "#55514A",
+  "grain": 0.045,
+  "scanlines": false,
+  "vignette": 0.1,
+  "letterbox": false,
+  "bg_mode": "paper",
+  "face": "serif",
+  "mood": "cinematic",
+  "family": "editorial"
+ },
+ "manuscript": {
+  "bg": "#F6F1E3",
+  "fg": "#1B1710",
+  "accent": "#7A5C2E",
+  "accent2": "#3F6B52",
+  "grain": 0.05,
+  "scanlines": false,
+  "vignette": 0.12,
+  "letterbox": false,
+  "bg_mode": "crosshatch",
+  "face": "serif",
+  "mood": "warm",
+  "family": "editorial"
+ },
+ "inkwell": {
+  "bg": "#12110F",
+  "fg": "#F4EFE6",
+  "accent": "#E2561F",
+  "accent2": "#A89880",
+  "grain": 0.045,
+  "scanlines": false,
+  "vignette": 0.5,
+  "letterbox": false,
+  "bg_mode": "topo",
+  "face": "serif",
+  "mood": "cinematic",
+  "family": "editorial"
+ },
+ "quarto": {
+  "bg": "#0E0F12",
+  "fg": "#F2F0EC",
+  "accent": "#D9B26A",
+  "accent2": "#8FA2B8",
+  "grain": 0.04,
+  "scanlines": false,
+  "vignette": 0.45,
+  "letterbox": false,
+  "bg_mode": "engraving",
+  "face": "serif",
+  "mood": "triumphant",
+  "family": "editorial"
+ },
+ "gazette": {
+  "bg": "#EFEBE1",
+  "fg": "#17151A",
+  "accent": "#1F4FD8",
+  "accent2": "#6B6560",
+  "grain": 0.05,
+  "scanlines": false,
+  "vignette": 0.1,
+  "letterbox": false,
+  "bg_mode": "rulegrid",
+  "face": "serif",
+  "mood": "cinematic",
+  "family": "editorial"
  }
 }
