@@ -145,6 +145,14 @@ function allowedNumbers(facts) {
  * measurement. Rather than trusting a prompt not to, every candidate line is
  * checked against the numbers actually measured from the repository.
  *
+ * What it does not do: a bare integer is licensed wherever it appears in the
+ * facts, with no notion of what it counted. A repository with 20 commits
+ * therefore licenses "saves 20 hours a week". Units are what carry a claim,
+ * which is why a token keeps its suffix -- "2M" is checked against "2M", not
+ * against "2" -- but a plain small integer that coincides with some unrelated
+ * measurement gets through. The guard is reliable against invented magnitudes
+ * and units; it is not a fact-checker.
+ *
  * Returns { kept, dropped } so the page can say what it threw away.
  */
 export function scrubCopy(lines, facts) {

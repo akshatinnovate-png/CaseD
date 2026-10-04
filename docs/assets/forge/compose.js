@@ -511,6 +511,16 @@ export function buildCreativePlan(story, ins, dname, d, rng, duration) {
  * shots can draw fabricated screens — that is what `sample` is for — but a
  * film about a real repository has no reason to.
  */
+/**
+ * A share as a person would write it. Python renders 51.0 as "51.0" and this
+ * renders the same JSON value as "51", so a share landing on a whole number
+ * made the two composers disagree about the text on screen.
+ */
+function pct(v) {
+  const f = Number(v);
+  return (Number.isInteger(f) ? String(f) : String(f)) + '%';
+}
+
 export function buildAtlasPlan(story, ins, d, duration) {
   const name = story.name;
   const stats = story.stats || {};
@@ -600,10 +610,10 @@ export function buildAtlasPlan(story, ins, d, duration) {
     add('appdash', {
       app: story.full_name || story.repo || name,
       title: 'The stack, *measured*.',
-      value: `${hero.share}%`, delta: hero.name,
+      value: pct(hero.share), delta: hero.name,
       label: 'share of the codebase',
       series: langs.slice(0, 8).map(l => l.share).reverse(),
-      cards: langs.slice(1, 4).map(l => ({ label: l.name, value: `${l.share}%` })),
+      cards: langs.slice(1, 4).map(l => ({ label: l.name, value: pct(l.share) })),
     }, 1.35, 'stack', `${langs.length} languages, measured from the tree.`, true, 'stack');
   }
 
@@ -620,7 +630,7 @@ export function buildAtlasPlan(story, ins, d, duration) {
       left: { kicker: 'in the source', text: 'What it *actually does*.',
               items: ins.techniques.slice(0, 3).map(t => t.name) },
       right: { kicker: 'in the repo', text: 'What it is *made of*.',
-               items: langs.slice(0, 3).map(l => `${l.name} ${l.share}%`) },
+               items: langs.slice(0, 3).map(l => `${l.name} ${pct(l.share)}`) },
     }, 1.25, 'two sides', 'Found by reading the code.', true, 'technique');
   }
 

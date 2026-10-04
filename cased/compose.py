@@ -509,6 +509,17 @@ def build_creative_plan(story: dict, ins: dict, dname: str, d: dict,
 
 
 
+def _pct(v) -> str:
+    """A share as a person would write it.
+
+    Python renders 51.0 as "51.0" and JavaScript renders the same JSON value as
+    "51", so a share that lands on a whole number made the two composers
+    disagree about the text on screen. Drop the empty decimal in both.
+    """
+    f = float(v)
+    return (f"{f:.0f}" if f == int(f) else f"{f:g}") + "%"
+
+
 def build_atlas_plan(story: dict, ins: dict | None, d: dict,
                      duration: float) -> list:
     """A product film.
@@ -620,11 +631,11 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
         add("appdash", {
             "app": story.get("repo") or name,
             "title": "The stack, *measured*.",
-            "value": f"{hero['share']}%", "delta": hero["name"],
+            "value": _pct(hero["share"]), "delta": hero["name"],
             "label": "share of the codebase",
             # The share ladder is the series: real proportions, in order.
             "series": [l["share"] for l in langs[:8]][::-1] or [1],
-            "cards": [{"label": l["name"], "value": f"{l['share']}%"}
+            "cards": [{"label": l["name"], "value": _pct(l["share"])}
                       for l in langs[1:4]],
         }, 1.35, "stack", f"{len(langs)} languages, measured from the tree.",
             hard=True, chap="stack")
@@ -642,7 +653,7 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
             "left": {"kicker": "in the source", "text": "What it *actually does*.",
                      "items": techs[:3]},
             "right": {"kicker": "in the repo", "text": "What it is *made of*.",
-                      "items": [f"{l['name']} {l['share']}%" for l in langs[:3]]},
+                      "items": [f"{l['name']} {_pct(l['share'])}" for l in langs[:3]]},
         }, 1.25, "two sides", "Found by reading the code.", hard=True,
             chap="technique")
 

@@ -121,6 +121,14 @@ has nowhere to send anything. The model writes compositions, never facts: its
 copy goes through the same guard that drops a line quoting a number nobody
 measured.
 
+That guard is narrower than it sounds, so here is what it actually promises.
+A numeric token keeps its unit, so `2M` is checked against `2M` and not
+against `2` — which is what catches invented magnitudes, rates and precision
+(`10x`, `2M requests`, `sub-100ms`, `99.9%`, `4K`). What it does not catch is a
+bare integer that coincides with some unrelated measurement: a repository with
+20 commits licenses "saves 20 hours a week". It is a guard against invented
+scale, not a fact-checker.
+
 The source of every shot it wrote travels inside `spec.json`, and the renderer
 registers them before loading, so `python3 -m cased` reproduces the film the
 browser previewed.

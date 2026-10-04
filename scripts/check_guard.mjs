@@ -30,6 +30,26 @@ const loc = story.stats.loc;
 const share = story.languages[0].share;
 const lang = story.languages[0].name;
 
+/**
+ * A probe number has to be one the repository does not contain, or the test
+ * fails for the wrong reason. This caught itself: "Saves 20 hours a week" was
+ * a drop-probe until the repository reached 20 commits, at which point 20 was
+ * a measured number and the guard was right to keep it.
+ *
+ * That is a real limit, not a test artifact. The guard licenses a bare
+ * integer wherever it appears in the facts, with no notion of what it
+ * counted -- so it reliably catches invented magnitudes and units, and a
+ * bare small integer that happens to match some unrelated measurement gets
+ * through. Units are what carry a claim, which is why the token has to.
+ */
+const factNumbers = new Set(
+  JSON.stringify(facts).match(/\d+/g) || []);
+const absent = (from) => {
+  for (let n = from; n < from + 5000; n++) if (!factNumbers.has(String(n))) return n;
+  throw new Error('no free number');
+};
+const A = absent(20), B = absent(42), C = absent(5000);
+
 const PROBES = [
   // Lines with no numbers at all are always fine.
   ['keep', 'Turn a repository into a cinematic launch film'],
@@ -44,13 +64,13 @@ const PROBES = [
   ['drop', '10x faster than the alternative'],
   ['drop', 'Handles 2M requests a second'],
   ['drop', 'Sub-100ms cold start'],
-  ['drop', 'Trusted by 5,000 developers'],
+  [`drop`, `Trusted by ${C} developers`],
   ['drop', '99.9% uptime'],
   ['drop', 'Renders in 4K'],
-  ['drop', 'Saves 20 hours a week'],
+  [`drop`, `Saves ${A} hours a week`],
   ['drop', 'Over 1M downloads'],
   ['drop', 'Three times smaller, 50% quicker'],
-  ['drop', 'Used by 42 teams in production'],
+  [`drop`, `Used by ${B} teams in production`],
   // A measured magnitude does not license a different unit on the same digits.
   ['drop', `${story.stats.commits}M commits`],
 ];
@@ -86,7 +106,18 @@ if (offScrub.dropped.length) {
               offScrub.dropped.map(d => d.line).join(' | '));
 }
 
+// State the limit the probes above do not: a bare integer that coincides with
+// any measured value is licensed, whatever it counted.
+const collide = `Ships in ${story.stats.commits} days`;
+const { kept: collideKept } = g.scrubCopy([collide], facts);
+if (!collideKept.length) {
+  bad++;
+  console.log('  BAD  expected a bare integer matching a measured value to pass');
+}
+
 console.log(bad
   ? `FAIL ${bad} guard checks wrong`
-  : `ok  ${PROBES.length} probes + batch + offline copy all behave correctly`);
+  : `ok  ${PROBES.length} probes + batch + offline copy all behave correctly `
+    + `(probe numbers ${A}/${B}/${C} chosen absent from the facts; a bare `
+    + `integer matching a measurement is licensed by design)`);
 process.exit(bad ? 1 : 0);
