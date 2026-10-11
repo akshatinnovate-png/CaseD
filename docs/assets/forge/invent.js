@@ -197,6 +197,120 @@ export async function drawShot(brief, key) {
   return src;
 }
 
+// ------------------------------------------------------- canonical data
+
+/**
+ * Fill a built-in shot's data from the measured story.
+ *
+ * The model is good at choosing which shot a beat wants and at writing the
+ * line above it. It is not given the data contracts, and it should not be:
+ * every figure in a cased film comes out of the analyzer, so letting a
+ * language model supply them would be the one thing this project does not do.
+ *
+ * Left to itself it emits `stat` with a label and no value, which renders 0,
+ * and `langs` with names and no shares, which renders names and blank space.
+ * So the model's copy is kept -- titles, captions, the phrasing it chose --
+ * and every number is replaced with the real one.
+ *
+ * A type with no builder here keeps whatever the model sent; the probe then
+ * decides whether it draws.
+ */
+export function canonicalData(type, given, { story, insight }) {
+  const d = { ...(given || {}) };
+  const stats = story.stats || {};
+  const langs = story.languages || [];
+  const hl = story.highlights || [];
+  const tl = story.timeline || [];
+  const moments = story.code_moments || [];
+  const ins = insight || {};
+  const keepTitle = (fallback) => d.title || fallback;
+
+  switch (type) {
+    case 'stat': {
+      // Match the label the model asked for against a measured highlight,
+      // rather than inventing a number to sit under it.
+      const want = String(d.label || '').toLowerCase();
+      const hit = hl.find(h => want && h.label.toLowerCase().includes(want.split(' ')[0]))
+               || hl[0];
+      if (!hit) return null;
+      return { value: hit.value, label: hit.label };
+    }
+    case 'langs':
+      if (langs.length < 2) return null;
+      return { title: keepTitle('built with'),
+               items: langs.slice(0, 5).map(l => ({ name: l.name, share: l.share, color: l.color })) };
+    case 'tree': {
+      const rows = (ins.tree || story.tree || []).filter(t => t.path);
+      if (rows.length < 3) return null;
+      return { title: keepTitle('what is in here'), items: rows.slice(0, 8) };
+    }
+    case 'timeline':
+      if (tl.length < 3) return null;
+      return { title: keepTitle('how it got here'), items: tl.slice(-4) };
+    case 'bullets': {
+      const items = (story.features || []).slice(0, 5);
+      // The model may have written better bullets than the README; keep them
+      // if it did, since they already passed the number guard.
+      const mine = Array.isArray(d.items) ? d.items.filter(x => typeof x === 'string') : [];
+      const use = mine.length >= 2 ? mine.slice(0, 5) : items;
+      if (use.length < 2) return null;
+      return { title: keepTitle('what it does'), items: use };
+    }
+    case 'code': case 'callout': {
+      const m = moments.find(x => x.path === d.path) || moments[0];
+      if (!m || !m.code) return null;
+      return type === 'code'
+        ? { path: m.path, code: m.code, caption: d.caption || m.caption || '', dur: 3.2 }
+        : { path: m.path, code: m.code.slice(0, 13), highlight: 0,
+            label: d.label || 'the idea', note: d.note || m.caption || '' };
+    }
+    case 'heatmap': {
+      const days = ins.cadence || [];
+      if (days.filter(Boolean).length < 12) return null;
+      return { title: keepTitle('the last six months'), days, note: ins.peak_day || '' };
+    }
+    case 'kpi': {
+      const items = hl.slice(0, 4).map(h => ({ label: h.label, value: h.value }));
+      if (!items.length) return null;
+      return { title: keepTitle(''), items };
+    }
+    case 'arch': {
+      const mods = ins.modules || [];
+      if (mods.length < 4) return null;
+      const linked = mods.filter(m => m.deg_in || m.deg_out);
+      const pool = linked.length >= 4 ? linked : mods;
+      const nodes = pool.slice().sort((a, b) =>
+        (b.deg_in * 3 + b.deg_out) - (a.deg_in * 3 + a.deg_out)).slice(0, 12);
+      const idx = new Map(nodes.map((m, i) => [m.id, i]));
+      const edges = [];
+      for (const [a, b] of ins.edges || []) {
+        const ia = mods[a]?.id, ib = mods[b]?.id;
+        if (idx.has(ia) && idx.has(ib)) edges.push([idx.get(ia), idx.get(ib)]);
+      }
+      return { title: keepTitle('architecture'),
+               nodes: nodes.map(m => ({ label: m.label, hub: m.id === ins.hub })),
+               edges: edges.slice(0, 22),
+               note: `${mods.length} modules, ${(ins.edges || []).length} imports between them` };
+    }
+    case 'flow':
+      if ((ins.pipeline || []).length < 3) return null;
+      return { title: keepTitle('how it runs'), items: ins.pipeline.slice(0, 5) };
+    case 'constellation':
+      if ((ins.techniques || []).length < 3) return null;
+      return { title: keepTitle('techniques in the source'),
+               items: ins.techniques.slice(0, 8).map(t => ({ name: t.name })) };
+    case 'globe':
+      return { kicker: d.kicker || 'available now',
+               text: d.text || 'Ship it anywhere',
+               sub: story.license ? `Open source \u00b7 ${story.license}` : 'Clone it and run it.' };
+    case 'endcard':
+      return { name: story.name, sub: story.url || story.repo || '',
+               cta: 'made with cased2.0' };
+    default:
+      return d;
+  }
+}
+
 // ----------------------------------------------------------- validation
 
 /**
@@ -269,11 +383,17 @@ export async function invent({ story, insight, frontend, themeName, theme, shotT
         rejected.push({ name: shot.use, stage: 'unknown', error: 'no such shot type' });
         continue;
       }
-      // The model chose a built-in but does not know its data contract, so the
-      // same probe applies: a `langs` shot with no `share` renders
-      // "undefined%" quite happily, and nothing else would catch it.
-      const verdict = await validateShot(call, { name: shot.use, data: shot.data, theme });
-      if (verdict.ok) kept.push(shot);
+      // The model chose the shot; the data comes from the analyzer. Left to
+      // itself it sends `stat` a label with no value, which renders 0.
+      const data = canonicalData(shot.use, shot.data, { story, insight });
+      if (!data) {
+        rejected.push({ name: shot.use, stage: 'no evidence',
+                        error: 'the repository has nothing to put in it' });
+        onStep?.(`${shot.use} dropped: nothing measured to fill it`);
+        continue;
+      }
+      const verdict = await validateShot(call, { name: shot.use, data, theme });
+      if (verdict.ok) kept.push({ ...shot, data });
       else {
         rejected.push({ name: shot.use, ...verdict });
         onStep?.(`${shot.use} rejected: ${verdict.stage} \u2014 ${verdict.error}`);

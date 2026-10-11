@@ -5265,6 +5265,129 @@ function camera(shot, p, lt) {
    not say so is indistinguishable from a real one.
    ======================================================================= */
 
+
+/* --- product UI primitives ---------------------------------------------
+   A product screen is made of small, repeated parts: an icon, a tiny
+   uppercase label, a coloured delta, a sparkline in a table row. The first
+   version of these shots drew containers with three rows of text in them,
+   which is why they read as wireframes rather than software. */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Stroked glyphs at 24x24, the size a product nav actually uses. */
+const ICONS = {
+  home:   'M3 11l9-8 9 8M5 10v10h14V10',
+  board:  'M4 4h6v16H4zM14 4h6v9h-6z',
+  code:   'M9 6l-5 6 5 6M15 6l5 6-5 6',
+  doc:    'M6 3h8l4 4v14H6zM14 3v4h4',
+  chart:  'M4 20V9M10 20V4M16 20v-7M22 20H2',
+  people: 'M8 11a3.2 3.2 0 100-6.4A3.2 3.2 0 008 11zM2 20c0-3.3 2.7-5.2 6-5.2s6 1.9 6 5.2M17 11.5a3 3 0 100-6 3 3 0 000 6zM16 14.9c3 0 6 1.6 6 5.1',
+  chat:   'M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5A8 8 0 1121 12z',
+  clock:  'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3.2 2',
+  search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3',
+  gear:   'M12 15.4a3.4 3.4 0 100-6.8 3.4 3.4 0 000 6.8zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.9 2.9l-.1-.1a1.7 1.7 0 00-2.9 1.2 2 2 0 11-4 0 1.7 1.7 0 00-2.9-1.2l-.1.1a2 2 0 11-2.9-2.9l.1-.1A1.7 1.7 0 003 15a2 2 0 010-4 1.7 1.7 0 001.2-2.9l-.1-.1a2 2 0 112.9-2.9l.1.1A1.7 1.7 0 0010 4a2 2 0 014 0 1.7 1.7 0 002.9 1.2l.1-.1a2 2 0 112.9 2.9l-.1.1A1.7 1.7 0 0021 11a2 2 0 010 4z',
+  inbox:  'M4 13h4l2 3h4l2-3h4M4 13l2.5-8h11L20 13v6H4z',
+  check:  'M4 5h16v16H4zM8 12.5l3 3 5-6',
+  flag:   'M5 21V4h12l-2 4 2 4H5',
+  bolt:   'M13 2L4 14h7l-1 8 9-12h-7z',
+};
+const RAIL_ORDER = ['home', 'board', 'code', 'doc', 'chart', 'people', 'chat', 'clock', 'gear'];
+
+/** One stroked icon, sized in frame units. */
+function icon(name, size, colour, stroke = 1.7) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.style.cssText = `width:${px(size)};height:${px(size)};display:block;flex:0 0 auto;`;
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', ICONS[name] || ICONS.doc);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', colour);
+  path.setAttribute('stroke-width', String(stroke));
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(path);
+  return svg;
+}
+
+/** The tiny uppercase mono label that sits over every figure on these screens. */
+function micro(text, extra = '') {
+  const n = el('div', 'mono', esc(text));
+  n.style.cssText =
+    `font-size:${px(13)};letter-spacing:.14em;text-transform:uppercase;` +
+    `color:var(--muted);opacity:.85;${extra}`;
+  return n;
+}
+
+/** A sparkline. Deterministic: it draws the numbers it is given, nothing more. */
+function spark(values, w, h, colour, fill = false, grid = 0) {
+  const vals = (values || []).map(Number).filter(Number.isFinite);
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 100 ${Math.round(h / w * 100)}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = `width:${px(w)};height:${px(h)};display:block;overflow:visible;`;
+  if (vals.length < 2) return svg;
+  const H = Math.round(h / w * 100);
+  // A chart on a product screen sits on rules. Without them the line floats
+  // in a white rectangle, which is what a placeholder looks like.
+  for (let i = 1; i <= grid; i++) {
+    const y = (H / (grid + 1)) * i;
+    const g = document.createElementNS(SVG_NS, 'line');
+    g.setAttribute('x1', '0'); g.setAttribute('x2', '100');
+    g.setAttribute('y1', String(y)); g.setAttribute('y2', String(y));
+    g.setAttribute('stroke', S.light ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.09)');
+    g.setAttribute('stroke-width', '1');
+    g.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(g);
+  }
+  const lo = Math.min(...vals), hi = Math.max(...vals), span = (hi - lo) || 1;
+  const pts = vals.map((v, i) => [
+    (i / (vals.length - 1)) * 100,
+    H - ((v - lo) / span) * (H - 2) - 1,
+  ]);
+  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(' ');
+  if (fill) {
+    const area = document.createElementNS(SVG_NS, 'path');
+    area.setAttribute('d', `${d} L100 ${H} L0 ${H} Z`);
+    area.setAttribute('fill', colour);
+    area.setAttribute('opacity', '0.14');
+    svg.appendChild(area);
+  }
+  const line = document.createElementNS(SVG_NS, 'path');
+  line.setAttribute('d', d);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', colour);
+  line.setAttribute('stroke-width', '2');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('vector-effect', 'non-scaling-stroke');
+  svg.appendChild(line);
+  return svg;
+}
+
+/** A measured change, coloured by direction. */
+function deltaChip(text, up) {
+  const n = el('span', 'mono', esc(text));
+  const good = up === undefined ? 'var(--accent)' : (up ? '#1E9E5A' : '#C8452F');
+  n.style.cssText =
+    `font-size:${px(15)};font-weight:650;color:${good};` +
+    `font-variant-numeric:tabular-nums;`;
+  return n;
+}
+
+/** A thin progress rail, the kind every product screen has a column of. */
+function meterBar(frac, w, colour) {
+  const track = el('u');
+  track.style.cssText =
+    `display:block;width:${px(w)};height:${px(6)};border-radius:${px(3)};` +
+    `background:${S.light ? 'rgba(0,0,0,.09)' : 'rgba(255,255,255,.12)'};` +
+    `overflow:hidden;flex:0 0 auto;`;
+  const fillEl = el('i');
+  fillEl.style.cssText =
+    `display:block;height:100%;width:${(clamp(frac) * 100).toFixed(1)}%;` +
+    `background:${colour || 'var(--accent)'};transform-origin:left;`;
+  track.appendChild(fillEl);
+  return { track, fill: fillEl };
+}
+
 /** Panel surface: a hair lighter than the ground on dark, darker on light. */
 function surf(a = 1) {
   return S.light ? `rgba(255,255,255,${a})` : `rgba(255,255,255,${0.045 * a})`;
@@ -5278,7 +5401,7 @@ function sunk(a = 1) {
  * an optional icon rail down the left. Returns the parts so each shot can
  * fill the body and animate its own contents.
  */
-function appShell(d, { rail = true, width = null } = {}) {
+function appShell(d, { rail = true, width = null, minH = null } = {}) {
   const win = el('div');
   // Headlined shots push the window down so the type has room above it.
   const top = d.title ? (S.vertical ? 58 : 60) : 50;
@@ -5310,31 +5433,40 @@ function appShell(d, { rail = true, width = null } = {}) {
   win.appendChild(bar);
 
   const row = el('div');
-  row.style.cssText = `display:flex;align-items:stretch;min-height:${px(S.vertical ? 620 : 660)};`;
+  // A window taller than its contents reads as an empty app. Shots that know
+  // how much they have to show say so; the rest get the full pane.
+  row.style.cssText =
+    `display:flex;align-items:stretch;min-height:${px(minH || (S.vertical ? 620 : 660))};`;
   win.appendChild(row);
 
   let railEl = null;
   if (rail) {
     railEl = el('div');
     railEl.style.cssText =
-      `flex:0 0 auto;width:${px(62)};padding:${px(18)} 0;display:flex;` +
-      `flex-direction:column;align-items:center;gap:${px(16)};background:${sunk(0.4)};` +
+      `flex:0 0 auto;width:${px(74)};padding:${px(18)} 0;display:flex;` +
+      `flex-direction:column;align-items:center;gap:${px(10)};background:${sunk(0.4)};` +
       `border-right:1px solid ${S.light ? 'rgba(0,0,0,.06)' : 'var(--line)'};`;
     const dot = el('u');
     dot.style.cssText =
       `width:${px(26)};height:${px(26)};border-radius:50%;background:var(--accent);display:block;`;
     railEl.appendChild(dot);
-    // Nine neutral glyph slots: the shape of a product's nav, not a claim
-    // about which features exist.
-    for (let i = 0; i < 8; i++) {
-      const g = el('u');
+    // A product nav, drawn as one. Grey rectangles here were the single
+    // clearest tell that these screens were wireframes.
+    // The nav is as long as the pane, not longer: on a short screen a full
+    // rail is what holds the window open and leaves the dead space below the
+    // content that gives a mockup away.
+    const room = minH ? Math.max(4, Math.floor((minH - 70) / 48)) : RAIL_ORDER.length;
+    RAIL_ORDER.slice(0, room).forEach((name, i) => {
       const on = i === (d.railActive ?? 2);
-      g.style.cssText =
-        `width:${px(22)};height:${px(22)};border-radius:${px(6)};display:block;` +
-        `background:${on ? 'var(--accent)' : (S.light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.14)')};` +
-        `opacity:${on ? 1 : 0.75};`;
-      railEl.appendChild(g);
-    }
+      const slot = el('div');
+      slot.style.cssText =
+        `width:${px(38)};height:${px(38)};border-radius:${px(10)};display:flex;` +
+        `align-items:center;justify-content:center;` +
+        (on ? `background:${S.light ? 'rgba(226,86,31,.12)' : 'rgba(255,255,255,.09)'};` : '');
+      slot.appendChild(icon(name, 21,
+        on ? 'var(--accent)' : (S.light ? 'rgba(0,0,0,.42)' : 'rgba(255,255,255,.46)')));
+      railEl.appendChild(slot);
+    });
     row.appendChild(railEl);
   }
 
@@ -5499,7 +5631,12 @@ BUILD.appboard = (d) => {
   const n = el('div', 'layer');
   const head = appHead(d);
   if (head) n.appendChild(head);
-  const { win, body } = appShell(d, { rail: true });
+  // Three columns of two cards in a pane built for four leaves a third of the
+  // window empty, which is the single loudest tell that a screen is a mockup.
+  const tall = Math.max(1, ...(d.columns || []).map(c => Math.min((c.cards || []).length, 3)));
+  const { win, body } = appShell(d, {
+    rail: true, minH: Math.min(S.vertical ? 620 : 660, 104 + tall * 104),
+  });
   n.appendChild(win);
 
   const wrap = el('div');
@@ -5515,25 +5652,58 @@ BUILD.appboard = (d) => {
   for (const col of (d.columns || []).slice(0, 4)) {
     const c = el('div');
     c.style.cssText = `flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:${px(10)};`;
+    const hdr = el('div');
+    hdr.style.cssText = `display:flex;align-items:center;gap:${px(9)};`;
     const t = el('div', 'mono', esc(col.name || ''));
     t.style.cssText =
       `font-size:${px(14)};letter-spacing:.1em;text-transform:uppercase;color:var(--muted);`;
-    c.appendChild(t);
+    const count = el('span', 'mono', String((col.cards || []).length));
+    count.style.cssText =
+      `font-size:${px(12)};padding:${px(2)} ${px(7)};border-radius:999px;` +
+      `background:${S.light ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.10)'};color:var(--muted);`;
+    hdr.append(t, count);
+    c.appendChild(hdr);
     for (const card of (col.cards || []).slice(0, 3)) {
       const k = el('div');
       k.style.cssText =
         `padding:${px(13)} ${px(14)};border-radius:${px(10)};background:${surf(1)};` +
         `border:1px solid ${S.light ? 'rgba(0,0,0,.08)' : 'var(--line)'};`;
-      const label = el('div', '', esc(typeof card === 'string' ? card : card.text));
-      label.style.cssText = `font-size:${px(18)};font-weight:550;line-height:1.3;`;
+      const obj = typeof card === 'object' ? card : { text: card };
+      const label = el('div', '', esc(obj.text || ''));
+      label.style.cssText = `font-size:${px(18)};font-weight:550;line-height:1.32;`;
       k.appendChild(label);
-      const tagText = typeof card === 'object' ? card.tag : null;
-      if (tagText) {
-        const tg = el('div', 'mono', esc(tagText));
+
+      const foot = el('div');
+      foot.style.cssText =
+        `display:flex;align-items:center;gap:${px(9)};margin-top:${px(11)};`;
+      if (obj.tag) {
+        const tg = el('span', 'mono', esc(obj.tag));
         tg.style.cssText =
-          `margin-top:${px(9)};font-size:${px(13)};letter-spacing:.08em;` +
-          `text-transform:uppercase;color:var(--accent);`;
-        k.appendChild(tg);
+          `font-size:${px(12)};letter-spacing:.08em;text-transform:uppercase;` +
+          `color:var(--accent);padding:${px(3)} ${px(8)};border-radius:${px(5)};` +
+          `background:${S.light ? 'rgba(226,86,31,.10)' : 'rgba(255,255,255,.07)'};`;
+        foot.appendChild(tg);
+      }
+      if (obj.meta) {
+        const mt = el('span', 'mono', esc(obj.meta));
+        mt.style.cssText = `font-size:${px(12)};color:var(--muted);`;
+        foot.appendChild(mt);
+      }
+      // An initial stands in for a person without inventing a name.
+      if (obj.who) {
+        const av = el('span', 'mono', esc(String(obj.who).slice(0, 1).toUpperCase()));
+        av.style.cssText =
+          `margin-left:auto;width:${px(22)};height:${px(22)};border-radius:50%;` +
+          `display:flex;align-items:center;justify-content:center;font-size:${px(11)};` +
+          `background:${S.light ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.12)'};color:var(--muted);`;
+        foot.appendChild(av);
+      }
+      if (foot.children.length) k.appendChild(foot);
+      if (Number.isFinite(Number(obj.frac))) {
+        const m = meterBar(Number(obj.frac), 999, 'var(--accent)');
+        m.track.style.width = '100%';
+        m.track.style.marginTop = px(10);
+        k.appendChild(m.track);
       }
       c.appendChild(k);
       cardEls.push(k);
@@ -5559,7 +5729,7 @@ BUILD.appboard = (d) => {
   };
 };
 
-/* --- appdash: metric cards over a trend line --------------------------- */
+/* --- appdash: the screen a metric actually lives on --------------------- */
 BUILD.appdash = (d) => {
   const n = el('div', 'layer');
   const head = appHead(d);
@@ -5568,70 +5738,73 @@ BUILD.appdash = (d) => {
   n.appendChild(win);
 
   const wrap = el('div');
-  wrap.style.cssText = `flex:1 1 auto;padding:${px(24)} ${px(26)};min-width:0;`;
+  wrap.style.cssText = `flex:1 1 auto;padding:${px(22)} ${px(26)};min-width:0;display:flex;flex-direction:column;`;
+
+  // A strip of secondary figures across the top, the way every dashboard opens.
+  const strip = el('div');
+  strip.style.cssText =
+    `display:flex;gap:${px(34)};padding-bottom:${px(16)};margin-bottom:${px(18)};` +
+    `border-bottom:1px solid ${S.light ? 'rgba(0,0,0,.08)' : 'var(--line)'};`;
+  for (const t of (d.topline || []).slice(0, 4)) {
+    const c = el('div');
+    c.style.cssText = `display:flex;flex-direction:column;gap:${px(4)};`;
+    c.appendChild(micro(t.label || ''));
+    const v = el('div', '', esc(String(t.value == null ? '' : t.value)));
+    v.style.cssText = `font-size:${px(26)};font-weight:650;font-variant-numeric:tabular-nums;`;
+    c.appendChild(v);
+    strip.appendChild(c);
+  }
+  if (strip.children.length) wrap.appendChild(strip);
+
   const big = el('div');
-  big.style.cssText = `display:flex;align-items:baseline;gap:${px(18)};`;
+  big.style.cssText = `display:flex;align-items:baseline;gap:${px(16)};`;
   const val = el('div', '', esc(d.value || ''));
   val.style.cssText =
-    `font-size:${px(S.vertical ? 74 : 96)};font-weight:700;letter-spacing:-.035em;` +
-    `font-variant-numeric:tabular-nums;`;
+    `font-size:${px(S.vertical ? 68 : 84)};font-weight:700;letter-spacing:-.035em;` +
+    `font-variant-numeric:tabular-nums;line-height:1;`;
   big.appendChild(val);
-  if (d.delta) {
-    const dl = el('div', '', esc(d.delta));
-    dl.style.cssText =
-      `font-size:${px(32)};color:var(--accent);font-weight:650;font-variant-numeric:tabular-nums;`;
-    big.appendChild(dl);
-  }
+  if (d.delta) big.appendChild(deltaChip(d.delta, d.up));
   wrap.appendChild(big);
-  if (d.label) {
-    const lb = el('div', 'mono', esc(d.label));
-    lb.style.cssText =
-      `font-size:${px(15)};letter-spacing:.1em;text-transform:uppercase;` +
-      `color:var(--muted);margin-top:${px(6)};`;
-    wrap.appendChild(lb);
-  }
+  if (d.label) wrap.appendChild(micro(d.label, `margin-top:${px(6)};`));
 
-  // The trend line: a real polyline over the supplied series.
-  const series = (d.series || []).map(Number).filter(v => Number.isFinite(v));
-  const svgNS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(svgNS, 'svg');
-  const W = 1000, H = 230;
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.style.cssText = `display:block;width:100%;height:${px(190)};margin-top:${px(20)};overflow:visible;`;
-  let path = null, area = null;
-  if (series.length > 1) {
-    const lo = Math.min(...series), hi = Math.max(...series);
-    const span = (hi - lo) || 1;
-    const pts = series.map((v, i) => [
-      (i / (series.length - 1)) * W,
-      H - ((v - lo) / span) * (H - 24) - 12,
-    ]);
-    const dAttr = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-    area = document.createElementNS(svgNS, 'path');
-    area.setAttribute('d', `${dAttr} L${W} ${H} L0 ${H} Z`);
-    area.setAttribute('fill', 'var(--accent)');
-    area.setAttribute('opacity', '0.1');
-    svg.appendChild(area);
-    path = document.createElementNS(svgNS, 'path');
-    path.setAttribute('d', dAttr);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', 'var(--accent)');
-    path.setAttribute('stroke-width', '3');
-    path.setAttribute('stroke-linecap', 'round');
-    path.setAttribute('vector-effect', 'non-scaling-stroke');
-    svg.appendChild(path);
-  }
-  wrap.appendChild(svg);
+  const series = (d.series || []).map(Number).filter(Number.isFinite);
+  const chart = spark(series, 980, 170, 'var(--accent)', true, 3);
+  // The pane is wider than any figure the spark was sized for, and a chart
+  // that stops two-thirds across looks like a loading state.
+  chart.style.width = '100%';
+  chart.style.marginTop = px(14);
+  const line = chart.querySelector('path:last-child');
+  wrap.appendChild(chart);
 
-  const cards = el('div');
-  cards.style.cssText = `display:flex;gap:${px(12)};margin-top:${px(20)};`;
-  const cardEls = (d.cards || []).slice(0, 4).map(c => {
-    const e = cardish(c.label || c.name || '', [c.value || '']);
-    cards.appendChild(e);
-    return e;
+  // A table under the chart. This is the part that was missing: a dashboard
+  // is mostly rows, and three label/value pairs read as a wireframe.
+  const rows = (d.rows || []).slice(0, 5).map((r) => {
+    const row = el('div');
+    row.style.cssText =
+      `display:flex;align-items:center;gap:${px(16)};padding:${px(10)} 0;` +
+      `border-top:1px solid ${S.light ? 'rgba(0,0,0,.07)' : 'var(--line)'};`;
+    const dot = el('u');
+    dot.style.cssText =
+      `width:${px(9)};height:${px(9)};border-radius:50%;display:block;flex:0 0 auto;` +
+      `background:${r.color || 'var(--accent)'};`;
+    const nm = el('span', '', esc(r.label || ''));
+    nm.style.cssText = `font-size:${px(19)};flex:0 0 ${px(220)};font-weight:550;`;
+    const m = meterBar(Number(r.frac) || 0, 280, r.color);
+    // The rail is the width of the row, not a fixed stub with dead space
+    // either side of it.
+    m.track.style.flex = '1 1 auto';
+    m.track.style.width = 'auto';
+    const fig = el('span', 'mono', esc(String(r.value == null ? '' : r.value)));
+    fig.style.cssText =
+      `font-size:${px(18)};flex:0 0 ${px(96)};text-align:right;` +
+      `font-variant-numeric:tabular-nums;color:var(--muted);`;
+    row.append(dot, nm, m.track);
+    if (r.series) row.appendChild(spark(r.series, 120, 26, r.color || 'var(--accent2)'));
+    row.appendChild(fig);
+    wrap.appendChild(row);
+    return { row, fill: m.fill };
   });
-  wrap.appendChild(cards);
+
   body.appendChild(wrap);
 
   return {
@@ -5641,20 +5814,22 @@ BUILD.appdash = (d) => {
       const p = seg(lt, 0.08, 0.6, E.expo);
       win.style.opacity = p.toFixed(3);
       win.style.transform = `translate(-50%,-50%) scale(${lerp(0.975, 1, p).toFixed(4)})`;
-      val.style.opacity = seg(lt, 0.22, 0.6).toFixed(3);
-      if (path) {
-        const len = 2400;
-        const q = seg(lt, 0.3, 0.9, E.expo);
-        path.setAttribute('stroke-dasharray', String(len));
-        path.setAttribute('stroke-dashoffset', String(len * (1 - q)));
-        if (area) area.setAttribute('opacity', (0.1 * q).toFixed(3));
+      val.style.opacity = seg(lt, 0.2, 0.58).toFixed(3);
+      strip.style.opacity = seg(lt, 0.16, 0.5).toFixed(3);
+      if (line) {
+        const q = seg(lt, 0.28, 0.9, E.expo);
+        line.setAttribute('stroke-dasharray', '2400');
+        line.setAttribute('stroke-dashoffset', String(2400 * (1 - q)));
       }
-      cardEls.forEach((e, i) => {
-        e.style.opacity = seg(lt, 0.5 + i * 0.05, 0.85 + i * 0.05).toFixed(3);
+      rows.forEach(({ row, fill }, i) => {
+        const q = seg(lt, 0.44 + i * 0.06, 0.44 + i * 0.06 + 0.4, E.expo);
+        row.style.opacity = q.toFixed(3);
+        fill.style.transform = `scaleX(${q.toFixed(3)})`;
       });
     },
   };
 };
+
 
 /* --- appchat: the assistant panel -------------------------------------- */
 BUILD.appchat = (d) => {

@@ -569,7 +569,24 @@ export function buildAtlasPlan(story, ins, d, duration) {
   // 3 -- recent work, as a board
   const tl = story.timeline || [];
   if (tl.length >= 3) {
-    const cards = tl.slice(-6).map(t => ({ text: ellipsis(t.text, 46) }));
+    // A card carries what the commit actually was: the subject, the kind of
+    // change its prefix declares, and its position in the history.
+    const kind = (text) => {
+      const head = text.slice(0, 16).includes(':')
+        ? text.split(':')[0].toLowerCase() : text.toLowerCase();
+      for (const [key, tag] of [['feat', 'feature'], ['add', 'feature'],
+                                ['fix', 'fix'], ['perf', 'speed'],
+                                ['refactor', 'refactor'], ['doc', 'docs'],
+                                ['test', 'tests']]) {
+        if (head.startsWith(key)) return tag;
+      }
+      return 'change';
+    };
+    const recent = tl.slice(-9);
+    const cards = recent.map((t, i) => ({
+      text: ellipsis(t.text, 44), tag: kind(t.text),
+      meta: `#${tl.length - recent.length + i + 1}`,
+    }));
     const third = Math.max(1, Math.floor(cards.length / 3));
     add('appboard', {
       app: story.full_name || story.repo || name,
@@ -612,8 +629,20 @@ export function buildAtlasPlan(story, ins, d, duration) {
       title: 'The stack, *measured*.',
       value: pct(hero.share), delta: hero.name,
       label: 'share of the codebase',
+      // The share ladder is the series: real proportions, in order.
       series: langs.slice(0, 8).map(l => l.share).reverse(),
-      cards: langs.slice(1, 4).map(l => ({ label: l.name, value: pct(l.share) })),
+      // The figures a stack screen carries besides the hero share.
+      topline: [
+        { label: 'files', value: stats.files || 0 },
+        { label: 'lines', value: (stats.loc || 0).toLocaleString('en-US') },
+        { label: 'languages', value: langs.length },
+        { label: 'directories', value: stats.directories || 0 },
+      ],
+      // Every language, as a measured row rather than three loose labels.
+      rows: langs.slice(0, 5).map(l => ({
+        label: l.name, value: pct(l.share),
+        frac: l.share / Math.max(langs[0].share, 1), color: l.color ?? null,
+      })),
     }, 1.35, 'stack', `${langs.length} languages, measured from the tree.`, true, 'stack');
   }
 

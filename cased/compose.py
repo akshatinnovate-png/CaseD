@@ -585,7 +585,20 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
     # 3 -- recent work, as a board
     tl = story.get("timeline") or []
     if len(tl) >= 3:
-        cards = [{"text": _ellipsis(t["text"], 46)} for t in tl[-6:]]
+        # A card carries what the commit actually was: the subject, the kind
+        # of change its prefix declares, and its position in the history.
+        def _kind(text):
+            head = text.split(":")[0].lower() if ":" in text[:16] else text.lower()
+            for key, tag in (("feat", "feature"), ("add", "feature"), ("fix", "fix"),
+                             ("perf", "speed"), ("refactor", "refactor"),
+                             ("doc", "docs"), ("test", "tests")):
+                if head.startswith(key):
+                    return tag
+            return "change"
+        recent = tl[-9:]
+        cards = [{"text": _ellipsis(t["text"], 44), "tag": _kind(t["text"]),
+                  "meta": f"#{len(tl) - len(recent) + i + 1}"}
+                 for i, t in enumerate(recent)]
         third = max(1, len(cards) // 3)
         add("appboard", {
             "app": story.get("repo") or name,
@@ -635,8 +648,18 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
             "label": "share of the codebase",
             # The share ladder is the series: real proportions, in order.
             "series": [l["share"] for l in langs[:8]][::-1] or [1],
-            "cards": [{"label": l["name"], "value": _pct(l["share"])}
-                      for l in langs[1:4]],
+            # The figures a stack screen carries besides the hero share.
+            "topline": [
+                {"label": "files", "value": stats.get("files", 0)},
+                {"label": "lines", "value": f"{stats.get('loc', 0):,}"},
+                {"label": "languages", "value": len(langs)},
+                {"label": "directories", "value": stats.get("directories", 0)},
+            ],
+            # Every language, as a measured row rather than three loose labels.
+            "rows": [{"label": l["name"], "value": _pct(l["share"]),
+                      "frac": l["share"] / max(langs[0]["share"], 1),
+                      "color": l.get("color")}
+                     for l in langs[:5]],
         }, 1.35, "stack", f"{len(langs)} languages, measured from the tree.",
             hard=True, chap="stack")
 
