@@ -2,7 +2,7 @@
 cased2.0 / directors
 ====================
 
-A director is pacing, shot grammar and transition vocabulary. It names a
+A director is pacing, bed vocabulary and transition vocabulary. It names a
 default theme, but the look is a separate axis -- see `themes.py`. Any of the
 82 themes composes with any of the directors:
 
@@ -10,15 +10,26 @@ default theme, but the look is a separate axis -- see `themes.py`. Any of the
 
 Swapping the director changes the edit; swapping the theme changes the look.
 The story underneath stays the same.
+
+What a director no longer changes is the shot grammar. Every film is a
+product film now -- windows, a board, an editor, a dashboard -- because a
+launch film for software should show the software. The old grammar of title
+cards, counters and a spinning globe over a shader was the same slideshow
+whichever director drew it.
+
+The transition vocabulary went the same way. `glitch`, `flash` and `zoom`,
+the drifting cameras and the motes-and-grid overlays all read as 2016 motion
+graphics sitting on top of the work rather than showing it. Films cut, fade,
+rise and wipe; the camera holds or pushes gently. The engine still
+implements the rest for hand-written shot lists (see the cased-slim skill),
+but no director will ask for them.
 """
 
 from __future__ import annotations
 
 DIRECTORS = {
-    # A product film: window chrome, a board, an editor, a dashboard, with the
-    # frame furniture on. This is the one that uses the app* shots -- the rest
-    # of the directors draw data, and a launch film for software mostly needs
-    # to show software.
+    # The default. Product UI on paper, serif headlines, chapter marks and
+    # captions -- the register the rest of these are now tuned against.
     "atlas": {
         "label": "Atlas",
         "blurb": "Product UI on paper, serif headlines, chapter marks and captions.",
@@ -32,30 +43,32 @@ DIRECTORS = {
         "hud": True,
     },
 
-    # Deep, filmic, restrained. The default -- it flatters almost any repo.
+    # Deep, filmic, restrained. Flatters almost any repo.
     "cinematic": {
         "label": "Cinematic",
         "blurb": "Deep blacks, slow pushes, letterbox. Takes the work seriously.",
         "mood": "cinematic",
         "theme": "midnight",
         "beds": ["aurora", "stars", "aurora", "rings"],
-        "cams": ["push", "pull", "push", "left"],
-        "ins": ["fade", "rise", "fade", "zoom", "fade"],
-        "pace": 1.0, "energy": 0.55, "intensity": 0.85,
-        "fx": ["motes"],
+        "cams": ["push", "none", "push", "none"],
+        "ins": ["fade", "rise", "fade", "wipe", "fade"],
+        "pace": 1.0, "energy": 0.3, "intensity": 0.85,
+        "fx": [],
+        "hud": True,
     },
 
-    # The TypeSafe reference: hot pink, dialog boxes, type that shouts.
+    # Hot pink and type the size of a bus -- but the cuts are clean.
     "brutalist": {
         "label": "Brutalist",
-        "blurb": "Hot pink, hard cuts, dialog boxes, type the size of a bus.",
+        "blurb": "Hot pink, hard cuts, type the size of a bus.",
         "mood": "brutalist",
         "theme": "hotpink",
         "beds": ["plasma", "plasma", "plasma"],
-        "cams": ["none", "none", "left", "none"],
-        "ins": ["cut", "cut", "push", "cut", "glitch"],
-        "pace": 0.86, "energy": 0.85, "intensity": 1.0,
-        "fx": ["grid"],
+        "cams": ["none", "none", "none", "none"],
+        "ins": ["cut", "cut", "wipe", "cut", "rise"],
+        "pace": 0.86, "energy": 0.4, "intensity": 1.0,
+        "fx": [],
+        "hud": True,
     },
 
     # Phosphor and scanlines. Built for CLIs and anything with a prompt.
@@ -65,50 +78,53 @@ DIRECTORS = {
         "mood": "retro",
         "theme": "phosphor",
         "beds": ["grid", "grid", "rings"],
-        "cams": ["push", "none", "up"],
-        "ins": ["cut", "rise", "glitch", "cut"],
-        "pace": 0.92, "energy": 0.65, "intensity": 0.9,
-        "fx": ["grid", "motes"],
+        "cams": ["push", "none", "none"],
+        "ins": ["cut", "rise", "fade", "cut"],
+        "pace": 0.92, "energy": 0.35, "intensity": 0.9,
+        "fx": [],
+        "hud": True,
     },
 
-    # Maximum energy. Flash cuts, glitch, neon. For a launch that wants noise.
+    # Quick. Still clean -- the pace carries it, not the effects.
     "hype": {
         "label": "Hype",
-        "blurb": "Flash cuts, glitch, neon. Built to stop a thumb mid-scroll.",
+        "blurb": "Short takes, fast board, neon. Built to stop a thumb mid-scroll.",
         "mood": "hype",
         "theme": "neon",
         "beds": ["rings", "plasma", "grid", "rings"],
-        "cams": ["push", "right", "pull", "push"],
-        "ins": ["flash", "glitch", "zoom", "flash", "cut"],
-        "pace": 0.72, "energy": 0.95, "intensity": 1.15,
-        "fx": ["motes", "wave"],
+        "cams": ["push", "none", "pull", "push"],
+        "ins": ["cut", "rise", "cut", "wipe", "cut"],
+        "pace": 0.72, "energy": 0.42, "intensity": 1.15,
+        "fx": [],
+        "hud": True,
     },
 
-    # The United Carriers reference: space, a globe, long orange arcs.
+    # Space, long arcs, room to breathe. For things that ship wide.
     "orbit": {
         "label": "Orbit",
-        "blurb": "Starfield, a turning globe, long arcs. For things that ship wide.",
+        "blurb": "Starfield, long arcs, unhurried. For things that ship wide.",
         "mood": "triumphant",
         "theme": "orbit",
         "beds": ["stars", "stars", "aurora", "stars"],
-        "cams": ["pull", "push", "left", "push"],
-        "ins": ["fade", "rise", "fade", "zoom"],
-        "pace": 1.08, "energy": 0.6, "intensity": 0.95,
-        "fx": ["motes"],
+        "cams": ["pull", "push", "none", "push"],
+        "ins": ["fade", "rise", "fade", "wipe"],
+        "pace": 1.08, "energy": 0.3, "intensity": 0.95,
+        "fx": [],
+        "hud": True,
     },
 
-    # Long-form. Built for --creative: structure over slogans, and enough
-    # visual register to hold a full minute without repeating itself.
+    # Long-form. Built for --creative: enough register to hold a full minute.
     "creative": {
         "label": "Creative",
         "blurb": "Long-form. Shows the architecture, the history and the clever bit.",
         "mood": "cinematic",
         "theme": "signal",
         "beds": ["aurora", "stars", "grid", "aurora", "rings", "stars"],
-        "cams": ["push", "none", "pull", "none", "left", "none"],
-        "ins": ["fade", "rise", "fade", "zoom", "rise", "fade"],
-        "pace": 1.0, "energy": 0.6, "intensity": 0.9,
-        "fx": ["motes"],
+        "cams": ["push", "none", "pull", "none", "none", "none"],
+        "ins": ["fade", "rise", "fade", "wipe", "rise", "fade"],
+        "pace": 1.0, "energy": 0.3, "intensity": 0.9,
+        "fx": [],
+        "hud": True,
     },
 
     # Soft, warm, human. For libraries and tools that are a kindness.
@@ -118,10 +134,11 @@ DIRECTORS = {
         "mood": "warm",
         "theme": "hearth",
         "beds": ["aurora", "aurora", "rings"],
-        "cams": ["push", "pull", "up"],
+        "cams": ["push", "pull", "none"],
         "ins": ["fade", "rise", "fade"],
-        "pace": 1.18, "energy": 0.45, "intensity": 0.7,
-        "fx": ["motes"],
+        "pace": 1.18, "energy": 0.25, "intensity": 0.7,
+        "fx": [],
+        "hud": True,
     },
 }
 
@@ -133,7 +150,7 @@ KIND_DEFAULT = {
     "ai": "cinematic",
     "app": "cinematic",
     "library": "warm",
-    "project": "cinematic",
+    "project": "atlas",
 }
 
 

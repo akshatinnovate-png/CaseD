@@ -105,6 +105,8 @@ class Story:
     features: list = field(default_factory=list)
     commands: list = field(default_factory=list)
     timeline: list = field(default_factory=list)
+    #: A spread of real file paths, for the shots that draw files as files.
+    files_sample: list = field(default_factory=list)
     kind: str = "project"
     mood: str = "cinematic"
     seed: int = 0
@@ -414,6 +416,7 @@ def survey_sources(root: Path, story: Story) -> list:
     total_files = total_loc = test_files = 0
     dirs: Counter = Counter()
 
+    seen_files: list = []
     for path, rel in walk_sources(root):
         ext = path.suffix.lower()
         lang_info = LANGS.get(ext)
@@ -429,6 +432,11 @@ def survey_sources(root: Path, story: Story) -> list:
             continue
         lines = text.splitlines()
         loc = sum(1 for ln in lines if ln.strip())
+        # The opening shot scatters the repository as windows. It used to
+        # fill them with grey placeholder lines, which is a picture of a
+        # wireframe rather than of this project -- so keep the real names,
+        # and the line count that was just counted rather than guessed at.
+        seen_files.append((rel, loc, lang))
         loc_by_lang[lang] += loc
         files_by_lang[lang] += 1
         total_loc += loc
@@ -449,6 +457,24 @@ def survey_sources(root: Path, story: Story) -> list:
         {"path": d, "files": n, "bar": round(n / max(dirs.values()), 3)}
         for d, n in dirs.most_common(12) if d != "."
     ]
+    # One file from each of the busiest directories first, so the scatter
+    # reads as the whole project rather than one corner of it.
+    by_dir: dict = {}
+    for rel, loc, lang in seen_files:
+        by_dir.setdefault(rel.split("/")[0] if "/" in rel else ".", []).append(
+            (rel, loc, lang))
+    sample: list = []
+    for round_ in range(4):
+        for d, _n in dirs.most_common(12):
+            group = sorted(by_dir.get(d) or [], key=lambda x: -x[1])
+            if len(group) > round_:
+                rel, loc, lang = group[round_]
+                sample.append({"path": rel, "loc": loc, "lang": lang})
+            if len(sample) >= 14:
+                break
+        if len(sample) >= 14:
+            break
+    story.files_sample = sample
 
     ranked = [
         {"name": lang, "loc": loc, "files": files_by_lang[lang],

@@ -133,8 +133,20 @@ def main(argv) -> int:
               all(x["dur"] > 0.5 for x in sh),
               f"min {min(x['dur'] for x in sh):.2f}s")
         check(f"{dur:g}s: tiles the runtime", ends and gaps)
+        # The film opens on the repository as a product, not on a title card
+        # over a shader -- that grammar is gone, so assert against the one
+        # that replaced it rather than letting the old name rot here.
         check(f"{dur:g}s: keeps an open and a close",
-              sh[0]["type"] == "title" and sh[-1]["type"] == "endcard")
+              sh[0]["type"] == "appwindows" and sh[-1]["type"] == "endcard")
+        check(f"{dur:g}s: no shot the old slideshow grammar used",
+              not ({x["type"] for x in sh} & {"title", "stat", "globe", "langs",
+                                              "timeline", "bigquote", "compare"}),
+              ", ".join(sorted({x["type"] for x in sh})))
+        check(f"{dur:g}s: no transition or camera the new register dropped",
+              not ({x["in"] for x in sh} & {"glitch", "flash", "zoom"})
+              and not ({x["cam"] for x in sh} & {"left", "right", "up"})
+              and not any(x["fx"] for x in sh),
+              f"{sorted({x['in'] for x in sh})} {sorted({x['cam'] for x in sh})}")
     check("compose is deterministic",
           compose(story, bm, 24.0, "cinematic", 1920, 1080, 4242) == spec)
 
@@ -163,10 +175,16 @@ def main(argv) -> int:
 
     cspec = compose(story, bm, 60.0, "creative", 1920, 1080, 4242, insight=ins)
     cs = cspec["shots"]
-    check("creative mode is long-form", len(cs) >= 12, f"{len(cs)} shots")
-    check("creative uses structural shots",
-          len({s["type"] for s in cs} & {"arch", "tree", "flow", "callout",
-                                         "constellation", "compare", "bigquote"}) >= 4)
+    # Long-form used to mean seventeen cards in a minute, which it could
+    # afford because each one held a word and a number. These screens hold a
+    # table apiece and need longer on them, so the bar is shots that earn
+    # their dwell, not shots per second.
+    check("creative mode is long-form", len(cs) >= 10, f"{len(cs)} shots")
+    check("creative stays in the product register",
+          len({s["type"] for s in cs} & {"appwindows", "apporbit", "appboard",
+                                         "appcode", "appdash", "appsplit",
+                                         "appchat"}) >= 5,
+          ", ".join(sorted({s["type"] for s in cs})))
     check("no two adjacent shots repeat a type",
           all(cs[i]["type"] != cs[i + 1]["type"] for i in range(len(cs) - 1)))
     check("creative tiles 60s",

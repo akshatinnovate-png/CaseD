@@ -251,20 +251,37 @@ the full deep read, including the graph and every technique with its evidence.
 
 ### Shot vocabulary
 
-Standard mode has nine shot types. Creative mode adds eight more, because a
-minute of title cards and stat counters is a minute of nothing — past about
-twenty seconds the eye has learned the format and starts reading the clock.
+Every film is a product film. There used to be three plans — a short arc of
+title cards and counters, a long one of diagrams, and this one — and the
+first two drew *data about* the repository: a number on a shader, a ring of
+module names, a globe. They were the same slideshow every time, whichever
+director drew them, and theming them differently never fixed that.
+
+So there is one grammar now, and it draws the repository as software.
 
 | Shot | Shows |
 |---|---|
-| `arch` | the import graph, hub highlighted, edges drawing in |
-| `tree` | top-level directories by line count |
-| `flow` | the pipeline, with a pulse running through it |
-| `callout` | the signature function, one line called out |
-| `heatmap` | six months of commits |
-| `constellation` | techniques found in the source, collision-free |
-| `compare` | "this, not that", pulled from the README |
-| `bigquote` | one claim, full-bleed |
+| `appwindows` | every sampled file as a window, with its real path and size |
+| `apporbit` | the top-level directories, with the file count in each |
+| `appboard` | recent commits as cards, tagged by the kind of change |
+| `appcode` | real source in an editor, tree and status bar filled from the repo |
+| `appdash` | the language split as a dashboard: topline, chart, a row per language |
+| `bullets` | what it does, in the README's own words |
+
+Past about forty seconds it keeps going in the same register, each beat
+gated on the evidence it needs:
+
+| Shot | Shows | Needs |
+|---|---|---|
+| `appsplit` | techniques against the stack, both sides counted | the deep read |
+| `appchat` | the README's claim, answered in a panel | a claim |
+| `appdash` | the commit rate by week | 60 days, 12 of them active |
+| `apporbit` | what the source knows how to do | 4 techniques |
+| `terminalrun` | the project's own documented commands | commands in the README |
+| `appcode` | a second file, further into the tree | 2 code moments |
+
+The other 60-odd shot types in the engine are still there and still
+documented — `cased-slim` hand-writes shot lists against all of them.
 
 ## Themes and graphics
 
@@ -378,18 +395,27 @@ source in an editor, the language split on a dashboard — with chapter marks an
 a caption on each beat. Nothing in it is invented, so the stamp reads MEASURED
 throughout.
 
-A director is a complete point of view: palette, background bed, pacing,
-transition vocabulary, and the musical mood underneath. Same repo, six films.
+A director is pacing, background bed, transition vocabulary and the musical
+mood underneath. It no longer decides the shot grammar — that is the same
+product grammar in every film — so the directors differ in register, not in
+whether the film shows the software.
 
 | Director | What it looks like |
 |---|---|
-| `cinematic` | Deep blacks, slow pushes, letterbox. Takes the work seriously. **(default)** |
-| `brutalist` | Hot pink, hard cuts, dialog boxes, type the size of a bus. |
+| `atlas` | Product UI on paper, serif headlines, chapter marks and captions. **(default)** |
+| `cinematic` | Deep blacks, slow pushes, letterbox. Takes the work seriously. |
+| `brutalist` | Hot pink, hard cuts, type the size of a bus. |
 | `terminal` | Phosphor green, scanlines, code first. For things with a prompt. |
-| `hype` | Flash cuts, glitch, neon. Built to stop a thumb mid-scroll. |
-| `orbit` | Starfield, a turning globe, long arcs. For things that ship wide. |
+| `hype` | Short takes, fast board, neon. Built to stop a thumb mid-scroll. |
+| `orbit` | Starfield, long arcs, unhurried. For things that ship wide. |
 | `warm` | Soft light, unhurried, generous margins. Quietly confident. |
 | `creative` | Long-form. Shows the architecture, the history and the clever bit. Used by `--creative`. |
+
+Films cut, fade, rise and wipe, and the camera holds or pushes gently. The
+`glitch`, `flash` and `zoom` transitions, the drifting cameras and the
+motes-and-grid overlays are gone from every director: they read as motion
+graphics sitting on top of the work rather than showing it. The engine still
+implements them for hand-written shot lists.
 
 ```bash
 python3 -m cased . --director brutalist

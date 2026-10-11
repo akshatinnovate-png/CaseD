@@ -6,6 +6,15 @@ director's, and all of them are safe to hand-edit before a re-render.
 
 Implemented in `BUILD` in `cased/engine/stage.html`.
 
+**What the automatic composer uses.** Every film it writes is a product film:
+`appwindows`, `apporbit`, `appboard`, `appcode`, `appdash` and `bullets`, plus
+`appsplit`, `appchat`, `terminalrun` and a second `appcode` past about forty
+seconds. The shot types below it no longer reaches for — `title`, `stat`,
+`globe`, `langs`, `timeline`, `arch`, `tree`, `flow`, `callout`, `heatmap`,
+`constellation`, `compare`, `bigquote` and the rest — were the old slideshow
+grammar, and they are documented here because `cased-slim` hand-writes shot
+lists against the whole library. Reach for them deliberately, not by default.
+
 ---
 
 ## `title`

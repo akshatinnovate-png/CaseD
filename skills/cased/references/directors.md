@@ -1,23 +1,48 @@
 # Directors, shot by shot
 
-A director is a complete point of view. It sets the palette, the background
-bed, the camera behaviour, the transition vocabulary, the pacing multiplier
-and the musical mood the scorer writes in. Changing it changes the whole film;
-the story underneath is untouched.
+A director sets the palette, the background bed, the camera behaviour, the
+transition vocabulary, the pacing multiplier and the musical mood the scorer
+writes in. Changing it changes the register of the film; the story underneath
+is untouched.
+
+What a director does **not** change is the shot grammar. Every film is a
+product film — windows, a board, an editor, a dashboard — because a launch
+film for software should show the software. See `shots.md`.
+
+Two things are gone from every director, and no director should reintroduce
+them: the `glitch`, `flash` and `zoom` transitions, and the drifting `left`,
+`right` and `up` cameras, along with the `motes`, `grid` and `wave` overlays.
+They read as motion graphics laid over the work rather than showing it. Films
+cut, fade, rise and wipe; the camera holds or pushes gently. The engine still
+implements the rest for hand-written shot lists (`cased-slim`).
 
 Defined in `cased/directors.py`. Add one by adding a dict entry — nothing else
 needs to change.
 
 ---
 
-## cinematic — *the default*
+## atlas — *the default*
+
+> Product UI on paper, serif headlines, chapter marks and captions.
+
+- **Palette** warm paper ground, burnt orange accent
+- **Beds** contours → topo → contours → paper
+- **Camera** mostly locked; one gentle push
+- **Transitions** fade, rise, wipe
+- **Score** unhurried, low energy (0.22)
+- **Frame furniture** on: shot counter, timecode, chapter marker, captions
+
+The register the others are tuned against. Use it when the project is the
+kind of thing someone would screenshot.
+
+## cinematic
 
 > Deep blacks, slow pushes, letterbox. Takes the work seriously.
 
 - **Palette** `#06070C` ground, violet `#7C5CFF`, cyan `#39D0FF`
 - **Beds** aurora → stars → aurora → rings
 - **Camera** slow push and pull; nothing snaps
-- **Transitions** fade, rise, zoom — no glitch, no flash
+- **Transitions** fade, rise, wipe
 - **Score** ~88–100 BPM, natural minor, generous reverb
 - **Letterbox** yes
 
@@ -26,12 +51,12 @@ read as credible. It is the safest choice and it flatters almost any repo.
 
 ## brutalist
 
-> Hot pink, hard cuts, dialog boxes, type the size of a bus.
+> Hot pink, hard cuts, type the size of a bus.
 
 - **Palette** `#F2719E` ground, black ink, white
 - **Beds** dithered plasma throughout
 - **Camera** locked off — the type does the moving
-- **Transitions** hard cuts and one glitch
+- **Transitions** hard cuts, one wipe
 - **Score** ~128–140 BPM, phrygian, heavy drive
 - **Signature** the `retro` shot: stacked System-7 dialog windows
 
@@ -44,8 +69,8 @@ confident; reads as obnoxious if the project is earnest. Choose deliberately.
 
 - **Palette** `#04080A` ground, phosphor `#38F58C`, amber `#FFC24D`
 - **Beds** perspective grid tunnel, rings at the close
-- **Camera** push and a slow tilt
-- **Transitions** cut, rise, glitch
+- **Camera** one push, otherwise locked
+- **Transitions** cut, rise, fade
 - **Score** ~112–120 BPM, mixolydian
 - **Signature** scanlines on, heavier grain
 
@@ -53,12 +78,12 @@ Use when the terminal *is* the product: CLIs, REPLs, shells, TUI apps.
 
 ## hype
 
-> Flash cuts, glitch, neon. Built to stop a thumb mid-scroll.
+> Short takes, fast board, neon. Built to stop a thumb mid-scroll.
 
 - **Palette** `#08030F` ground, `#FF2D71`, `#00F0FF`
 - **Beds** rings → plasma → grid → rings
-- **Camera** fast pushes and lateral moves
-- **Transitions** flash, glitch, zoom
+- **Camera** pushes and one pull
+- **Transitions** cut, rise, wipe — the pace carries it, not the effects
 - **Score** ~124–136 BPM, phrygian, maximum intensity
 - **Pacing** shortest shots of any director
 
@@ -67,12 +92,12 @@ Use for the social cut — paired with `--format 9:16`. It wins the first
 
 ## orbit
 
-> Starfield, a turning globe, long arcs. For things that ship wide.
+> Starfield, long arcs, unhurried. For things that ship wide.
 
 - **Palette** `#01030A` ground, orange `#FF7A1A`, blue `#2E7BFF`
 - **Beds** starfield throughout, one aurora
 - **Camera** long pulls
-- **Transitions** fade, rise, zoom
+- **Transitions** fade, rise, wipe
 - **Score** ~104–116 BPM, lydian — the most optimistic of the six
 - **Signature** the globe shot gets the most screen time
 
@@ -84,7 +109,7 @@ Use when reach is the story: APIs, CDNs, distributed systems, SDKs.
 
 - **Palette** `#0C0A09` ground, `#FF9E5E`, `#8FD4C1`
 - **Beds** aurora, rings at the close
-- **Camera** the slowest of the six
+- **Camera** the slowest of them
 - **Transitions** fade and rise only
 - **Score** ~92–104 BPM, dorian, lowest intensity
 - **Pacing** longest shots — 1.18× the base
@@ -106,7 +131,7 @@ With no `--director`, the project kind picks one:
 | `ai` | `cinematic` |
 | `app` | `cinematic` |
 | `library` | `warm` |
-| anything else | `cinematic` |
+| anything else | `atlas` |
 
 Kind comes from `classify()` in `cased/analyze.py`, which reads the name,
 description, stack and feature list. It is a heuristic. Override it when you

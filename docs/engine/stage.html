@@ -5293,6 +5293,33 @@ const ICONS = {
 };
 const RAIL_ORDER = ['home', 'board', 'code', 'doc', 'chart', 'people', 'chat', 'clock', 'gear'];
 
+/**
+ * A glyph for a label, by what the word says. A directory called `docs` gets
+ * the document icon and one called `tests` gets the tick; anything the table
+ * does not recognise falls back to the one that means "a thing in the tree",
+ * which is honest -- the icon is decoration, the label is the claim.
+ */
+const ICON_WORDS = [
+  [/doc|readme|guide|book|paper|md$/i, 'doc'],
+  [/test|spec|check|verif|assert|lint/i, 'check'],
+  [/chart|graph|stat|metric|analy|data|plot|report/i, 'chart'],
+  [/user|people|team|auth|account|member|contrib/i, 'people'],
+  [/chat|message|comment|talk|prompt|llm|ai/i, 'chat'],
+  [/time|clock|sched|cron|date|history|cadence|commit/i, 'clock'],
+  [/config|setting|option|env|setup|install|build|tool/i, 'gear'],
+  [/search|find|query|index|scan|pars|read/i, 'search'],
+  [/mail|inbox|queue|event|stream|api|server|route|net/i, 'inbox'],
+  [/fast|speed|perf|cache|optim|render|gpu|shader|synth|dsp|audio/i, 'bolt'],
+  [/flag|release|launch|ship|deploy|version/i, 'flag'],
+  [/board|kanban|task|issue|plan|project/i, 'board'],
+  [/home|root|main|core|app|site|web|page/i, 'home'],
+];
+function iconFor(label) {
+  const text = String(label || '');
+  for (const [rx, name] of ICON_WORDS) if (rx.test(text)) return name;
+  return 'code';
+}
+
 /** One stroked icon, sized in frame units. */
 function icon(name, size, colour, stroke = 1.7) {
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -5535,14 +5562,14 @@ BUILD.appcode = (d) => {
     `font-size:${px(14)};color:var(--muted);letter-spacing:.09em;` +
     `text-transform:uppercase;margin-bottom:${px(12)};`;
   tree.appendChild(tlabel);
-  const files = (d.files || []).slice(0, 9);
+  const files = (d.files || []).slice(0, 14);
   const fileRows = files.map((f, i) => {
     const name = typeof f === 'string' ? f : f.name;
     const depth = typeof f === 'string' ? 0 : (f.depth || 0);
     const on = typeof f === 'object' && f.active;
     const r = el('div', 'mono', esc(name));
     r.style.cssText =
-      `font-size:${px(16)};padding:${px(5)} ${px(8)};border-radius:${px(6)};` +
+      `font-size:${px(15)};padding:${px(4)} ${px(8)};border-radius:${px(6)};` +
       `margin-left:${px(depth * 14)};white-space:nowrap;overflow:hidden;` +
       `text-overflow:ellipsis;` +
       (on ? `background:var(--accent);color:#fff;` : `color:var(--muted);`);
@@ -5578,8 +5605,8 @@ BUILD.appcode = (d) => {
   pane.appendChild(tabs);
 
   const codeWrap = el('div');
-  codeWrap.style.cssText = `padding:${px(18)} ${px(20)};flex:1 1 auto;`;
-  const lines = (d.code || []).slice(0, 10);
+  codeWrap.style.cssText = `padding:${px(18)} ${px(20)};`;
+  const lines = (d.code || []).slice(0, 16);
   const codeRows = lines.map((text, i) => {
     const r = el('div');
     r.style.cssText = `display:flex;gap:${px(16)};align-items:baseline;`;
@@ -5597,6 +5624,27 @@ BUILD.appcode = (d) => {
     `display:inline-block;width:${px(2)};height:${px(20)};background:var(--accent);` +
     `vertical-align:-${px(3)};`;
   pane.appendChild(codeWrap);
+
+  // The status bar along the bottom of every editor. Nothing here is
+  // decoration: each cell is a value the composer measured, and a cell it
+  // did not measure is simply absent.
+  const statusCells = (d.status || []).filter(Boolean);
+  let status = null;
+  if (statusCells.length) {
+    status = el('div');
+    status.style.cssText =
+      `display:flex;align-items:center;gap:${px(22)};padding:${px(9)} ${px(20)};` +
+      `border-top:1px solid ${S.light ? 'rgba(0,0,0,.06)' : 'var(--line)'};` +
+      `background:${sunk(0.45)};margin-top:auto;`;
+    statusCells.slice(0, 6).forEach((cell, i) => {
+      const c = el('div', 'mono', esc(String(cell)));
+      c.style.cssText =
+        `font-size:${px(13)};letter-spacing:.04em;` +
+        `color:${i === 0 ? 'var(--accent)' : 'var(--muted)'};`;
+      status.appendChild(c);
+    });
+    pane.appendChild(status);
+  }
   body.appendChild(pane);
 
   return {
@@ -5836,7 +5884,12 @@ BUILD.appchat = (d) => {
   const n = el('div', 'layer');
   const head = appHead(d);
   if (head) n.appendChild(head);
-  const { win, body } = appShell(d, { rail: true });
+  // Two bubbles in a pane built for a full conversation is mostly empty
+  // window, so the pane is as tall as the thread it has to hold.
+  const turns = Math.min((d.messages || []).length, 4);
+  const { win, body } = appShell(d, {
+    rail: true, minH: Math.min(S.vertical ? 620 : 660, 150 + turns * 92),
+  });
   n.appendChild(win);
 
   const wrap = el('div');
@@ -5952,13 +6005,23 @@ BUILD.apporbit = (d) => {
       `background:${S.light ? '#FFFFFF' : 'rgba(20,21,30,.96)'};` +
       `border:1px solid ${S.light ? 'rgba(0,0,0,.08)' : 'var(--line)'};` +
       `box-shadow:0 ${px(14)} ${px(34)} ${S.light ? 'rgba(80,60,40,.14)' : 'rgba(0,0,0,.5)'};`;
-    const ic = el('u');
+    // A tinted square was the placeholder these pills shipped with. Pick a
+    // glyph from the name instead -- the same icon set the nav rail uses.
+    const ic = el('div');
     ic.style.cssText =
-      `width:${px(46)};height:${px(46)};border-radius:${px(13)};display:block;` +
-      `background:var(--accent);opacity:.2;`;
+      `width:${px(46)};height:${px(46)};border-radius:${px(13)};` +
+      `display:flex;align-items:center;justify-content:center;flex:0 0 auto;` +
+      `background:${S.light ? 'rgba(226,86,31,.12)' : 'rgba(255,255,255,.08)'};`;
+    ic.appendChild(icon(iconFor(name), 26, 'var(--accent)'));
     const tx = el('span', '', esc(name));
     tx.style.cssText = `font-size:${px(36)};font-weight:600;letter-spacing:-.015em;`;
     p.append(ic, tx);
+    // What is actually in there, when the composer counted it.
+    if (it && it.meta) {
+      const mt = el('span', 'mono', esc(String(it.meta)));
+      mt.style.cssText = `font-size:${px(19)};color:var(--muted);margin-left:${px(4)};`;
+      p.appendChild(mt);
+    }
     stage.appendChild(p);
     return p;
   });
@@ -6011,10 +6074,42 @@ BUILD.appwindows = (d) => {
         `background:${S.light ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.22)'};`;
       bar.appendChild(u);
     }
+    // A window with a real file's name in its title bar is a picture of this
+    // repository. The same window full of grey rules is a picture of a
+    // wireframe, which is what this shot used to be.
+    const f = (d.files || [])[i];
+    if (f) {
+      const nm = el('span', 'mono', esc(String(f.path).split('/').pop()));
+      nm.style.cssText =
+        `margin-left:${px(6)};font-size:${px(12)};color:var(--muted);` +
+        `white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+      bar.appendChild(nm);
+    }
     c.appendChild(bar);
     const bodyEl = el('div');
     bodyEl.style.cssText = `padding:${px(12)};display:grid;gap:${px(7)};`;
-    for (let k = 0; k < 3 + Math.floor(r() * 3); k++) {
+    if (f) {
+      const path = el('div', 'mono', esc(String(f.path)));
+      path.style.cssText =
+        `font-size:${px(13)};color:var(--fg);opacity:.72;white-space:nowrap;` +
+        `overflow:hidden;text-overflow:ellipsis;`;
+      bodyEl.appendChild(path);
+      // Whichever measurement came with the file, never one derived from
+      // the other: the CLI counts lines, the GitHub API reports bytes, and
+      // a size divided by a guessed line length is not a line count.
+      const size = f.loc != null
+        ? `${Number(f.loc).toLocaleString('en-US')} lines`
+        : (f.bytes != null
+          ? (f.bytes >= 1024
+            ? `${(f.bytes / 1024).toFixed(f.bytes >= 10240 ? 0 : 1)} KB`
+            : `${f.bytes} B`)
+          : '');
+      const meta = el('div', 'mono',
+        esc([f.lang, size].filter(Boolean).join('  \u00b7  ')));
+      meta.style.cssText = `font-size:${px(12)};color:var(--muted);`;
+      bodyEl.appendChild(meta);
+    }
+    for (let k = 0; k < (f ? 2 : 3) + Math.floor(r() * 3); k++) {
       const line = el('u');
       line.style.cssText =
         `display:block;height:${px(6)};border-radius:${px(3)};` +
@@ -6089,11 +6184,31 @@ BUILD.appsplit = (d) => {
       t.appendChild(span);
     }
     h.appendChild(t);
-    const rows = (side.items || []).slice(0, 4).map(it => {
-      const r = el('div', 'mono', esc(it));
+    // Four bare strings in a half-screen panel is a list with nothing to
+    // read. A row carries its glyph and, where the composer measured one,
+    // the figure that says how much of it there is.
+    const rows = (side.items || []).slice(0, 6).map(it => {
+      const obj = typeof it === 'object' && it ? it : { name: String(it) };
+      const r = el('div');
       r.style.cssText =
+        `display:flex;align-items:center;gap:${px(14)};` +
         `font-size:${px(19)};padding:${px(11)} 0;opacity:.72;` +
         `border-top:1px solid ${dark && S.light ? 'rgba(255,255,255,.16)' : 'var(--line)'};`;
+      const glyph = icon(iconFor(obj.name), 20,
+        dark && S.light ? 'rgba(246,241,232,.6)' : 'var(--accent)');
+      glyph.style.flex = '0 0 auto';
+      const nm = el('span', 'mono', esc(obj.name || ''));
+      nm.style.cssText =
+        `flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;` +
+        `text-overflow:ellipsis;`;
+      r.append(glyph, nm);
+      if (obj.meta) {
+        const mt = el('span', 'mono', esc(String(obj.meta)));
+        mt.style.cssText =
+          `font-size:${px(16)};flex:0 0 auto;opacity:.74;` +
+          `font-variant-numeric:tabular-nums;`;
+        r.appendChild(mt);
+      }
       h.appendChild(r);
       return r;
     });

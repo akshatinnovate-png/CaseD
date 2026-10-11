@@ -42,27 +42,26 @@
   ],
   "cams": [
    "push",
-   "pull",
+   "none",
    "push",
-   "left"
+   "none"
   ],
   "ins": [
    "fade",
    "rise",
    "fade",
-   "zoom",
+   "wipe",
    "fade"
   ],
   "pace": 1.0,
-  "energy": 0.55,
+  "energy": 0.3,
   "intensity": 0.85,
-  "fx": [
-   "motes"
-  ]
+  "fx": [],
+  "hud": true
  },
  "brutalist": {
   "label": "Brutalist",
-  "blurb": "Hot pink, hard cuts, dialog boxes, type the size of a bus.",
+  "blurb": "Hot pink, hard cuts, type the size of a bus.",
   "mood": "brutalist",
   "theme": "hotpink",
   "beds": [
@@ -73,22 +72,21 @@
   "cams": [
    "none",
    "none",
-   "left",
+   "none",
    "none"
   ],
   "ins": [
    "cut",
    "cut",
-   "push",
+   "wipe",
    "cut",
-   "glitch"
+   "rise"
   ],
   "pace": 0.86,
-  "energy": 0.85,
+  "energy": 0.4,
   "intensity": 1.0,
-  "fx": [
-   "grid"
-  ]
+  "fx": [],
+  "hud": true
  },
  "terminal": {
   "label": "Terminal",
@@ -103,25 +101,23 @@
   "cams": [
    "push",
    "none",
-   "up"
+   "none"
   ],
   "ins": [
    "cut",
    "rise",
-   "glitch",
+   "fade",
    "cut"
   ],
   "pace": 0.92,
-  "energy": 0.65,
+  "energy": 0.35,
   "intensity": 0.9,
-  "fx": [
-   "grid",
-   "motes"
-  ]
+  "fx": [],
+  "hud": true
  },
  "hype": {
   "label": "Hype",
-  "blurb": "Flash cuts, glitch, neon. Built to stop a thumb mid-scroll.",
+  "blurb": "Short takes, fast board, neon. Built to stop a thumb mid-scroll.",
   "mood": "hype",
   "theme": "neon",
   "beds": [
@@ -132,28 +128,26 @@
   ],
   "cams": [
    "push",
-   "right",
+   "none",
    "pull",
    "push"
   ],
   "ins": [
-   "flash",
-   "glitch",
-   "zoom",
-   "flash",
+   "cut",
+   "rise",
+   "cut",
+   "wipe",
    "cut"
   ],
   "pace": 0.72,
-  "energy": 0.95,
+  "energy": 0.42,
   "intensity": 1.15,
-  "fx": [
-   "motes",
-   "wave"
-  ]
+  "fx": [],
+  "hud": true
  },
  "orbit": {
   "label": "Orbit",
-  "blurb": "Starfield, a turning globe, long arcs. For things that ship wide.",
+  "blurb": "Starfield, long arcs, unhurried. For things that ship wide.",
   "mood": "triumphant",
   "theme": "orbit",
   "beds": [
@@ -165,21 +159,20 @@
   "cams": [
    "pull",
    "push",
-   "left",
+   "none",
    "push"
   ],
   "ins": [
    "fade",
    "rise",
    "fade",
-   "zoom"
+   "wipe"
   ],
   "pace": 1.08,
-  "energy": 0.6,
+  "energy": 0.3,
   "intensity": 0.95,
-  "fx": [
-   "motes"
-  ]
+  "fx": [],
+  "hud": true
  },
  "creative": {
   "label": "Creative",
@@ -199,23 +192,22 @@
    "none",
    "pull",
    "none",
-   "left",
+   "none",
    "none"
   ],
   "ins": [
    "fade",
    "rise",
    "fade",
-   "zoom",
+   "wipe",
    "rise",
    "fade"
   ],
   "pace": 1.0,
-  "energy": 0.6,
+  "energy": 0.3,
   "intensity": 0.9,
-  "fx": [
-   "motes"
-  ]
+  "fx": [],
+  "hud": true
  },
  "warm": {
   "label": "Warm",
@@ -230,7 +222,7 @@
   "cams": [
    "push",
    "pull",
-   "up"
+   "none"
   ],
   "ins": [
    "fade",
@@ -238,10 +230,9 @@
    "fade"
   ],
   "pace": 1.18,
-  "energy": 0.45,
+  "energy": 0.25,
   "intensity": 0.7,
-  "fx": [
-   "motes"
-  ]
+  "fx": [],
+  "hud": true
  }
 }

@@ -347,6 +347,12 @@ export async function analyzeRepo({ owner, repo }, token, onStep = () => {}) {
       .map(c => c.login).filter(Boolean).slice(0, 9),
     readme,
     treePaths: tree.filter(t => t.type === 'blob').map(t => t.path),
+    // A spread of real file paths for the shots that draw files as files:
+    // one from each of the busiest directories, biggest first, so the
+    // opening scatter reads as the whole project rather than one corner.
+    // The CLI counts lines here because it has the files on disk; the API
+    // only gives a byte size, so that is what this reports.
+    files_sample: filesSample(tree),
     // The raw entries, with type and size, so the code-shot picker can rank
     // files without fetching any of them first.
     tree_raw: tree.map(t => ({ path: t.path, type: t.type, size: t.size || 0 })),
@@ -366,4 +372,33 @@ export async function getFile({ owner, repo }, path, token, ref) {
                      token, { allow404: true });
   if (!j || Array.isArray(j) || !j.content) return null;
   return b64(j.content);
+}
+
+/**
+ * One file from each of the busiest directories, biggest first.
+ *
+ * The CLI's analyzer has the files on disk and counts their lines. The API
+ * gives a size in bytes and nothing else, so that is what this carries --
+ * `bytes`, never a line count divided out of it, because a guess rendered in
+ * the same type as a measurement is indistinguishable from one.
+ */
+function filesSample(tree, limit = 14) {
+  const byDir = new Map();
+  for (const t of tree) {
+    if (t.type !== 'blob' || !t.path) continue;
+    if (/(^|\/)(node_modules|vendor|dist|build|\.git|__pycache__)\//.test(t.path)) continue;
+    const dir = t.path.includes('/') ? t.path.split('/')[0] : '.';
+    if (!byDir.has(dir)) byDir.set(dir, []);
+    byDir.get(dir).push({ path: t.path, bytes: t.size || 0 });
+  }
+  const dirs = [...byDir.entries()].sort((a, b) => b[1].length - a[1].length);
+  for (const [, group] of dirs) group.sort((a, b) => b.bytes - a.bytes);
+  const out = [];
+  for (let round = 0; round < 4 && out.length < limit; round++) {
+    for (const [, group] of dirs) {
+      if (group.length > round) out.push(group[round]);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
 }

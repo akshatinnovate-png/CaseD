@@ -63,7 +63,7 @@ const CODE = [
   'def compose(story, beatmap, duration=24.0):',
   '    """Turn a story into a frame-exact shot list."""',
   '    dname, d = pick(director, story.get("kind"))',
-  '    plan = build_plan(story, dname, d, rng, duration)',
+  '    plan = build_plan(story, insight, d, duration)',
   '    decorate(plan, d, rng)',
   '    shots = _lay_out(plan, duration, beatmap)',
   '    return {"shots": shots, "theme": theme}',

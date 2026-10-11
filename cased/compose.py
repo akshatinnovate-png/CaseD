@@ -28,6 +28,18 @@ CALLOUT_LINES = 13
 #: Longest "what it is" card that still fits the engine's four-line box.
 CARD_CHARS = 76
 
+#: Which extensions belong to which language name, for the editor status bar.
+#: Only used to label a file the analyzer already measured -- never to guess
+#: at a language the languages table does not already list.
+_EXT_OF = {
+    "Python": ("py",), "JavaScript": ("js", "mjs", "cjs", "jsx"),
+    "TypeScript": ("ts", "tsx"), "HTML": ("html", "htm"), "CSS": ("css",),
+    "SCSS": ("scss",), "Markdown": ("md",), "Rust": ("rs",), "Go": ("go",),
+    "Ruby": ("rb",), "Java": ("java",), "C": ("c", "h"), "C++": ("cpp", "cc", "hpp"),
+    "C#": ("cs",), "Shell": ("sh", "bash"), "Swift": ("swift",), "Kotlin": ("kt",),
+    "PHP": ("php",), "SQL": ("sql",), "Vue": ("vue",), "Svelte": ("svelte",),
+}
+
 #: Words that read badly as the last one before an ellipsis.
 _TRAIL = {"the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "with",
           "by", "from", "into", "as", "that", "which", "its", "it", "this"}
@@ -219,113 +231,6 @@ def _lay_out(plan: list, duration: float, beatmap: dict) -> list:
 # ---------------------------------------------------------------------------
 
 
-def build_plan(story: dict, dname: str, d: dict, rng: random.Random,
-               duration: float) -> list:
-    """Choose which beats this particular repo has earned."""
-    name = story["name"]
-    stats = story.get("stats", {})
-    plan = []
-
-    def add(type_, data, weight, hard=False, **kw):
-        plan.append({"type": type_, "data": data, "weight": weight, "hard": hard, **kw})
-
-    # 1 — the hook
-    add("title", {
-        "kicker": story.get("repo") or "introducing",
-        "text": _hook_line(story, rng),
-        "caps": dname in ("brutalist", "hype", "orbit"),
-        "sub": "",
-        "rule": True,
-    }, 1.05)
-
-    # 2 — what it actually is.
-    # The hook is normally the head of the description, so playing the
-    # description next repeats the opening card word for word. Show whatever
-    # the hook left behind; if it left nothing, skip the beat.
-    hook = plan[0]["data"]["text"]
-    desc = story.get("description") or story.get("tagline") or ""
-    second = desc
-    if desc.lower().startswith(hook.lower()[:40]):
-        second = desc[len(hook):].lstrip(" \u2014\u2013-:,.").strip()
-        if second:
-            second = second[0].upper() + second[1:]
-    if second and len(second) > 24:
-        # A title card is read in two seconds, so this stays a line and not a
-        # paragraph. The budget used to be 108 characters at a pinned 92px,
-        # which overran the four-line box and clipped the sentence mid-phrase;
-        # the engine already sizes type to its length, so let it.
-        add("title", {
-            "kicker": "what it is",
-            "text": _ellipsis(second, CARD_CHARS),
-            "perLine": 4,
-            "rule": False,
-        }, 1.25)
-
-    # 3 — the brutalist director gets its dialog boxes early
-    if dname == "brutalist":
-        wins = [{"title": f"{name} 2.0", "body": f"> {desc[:76] or 'ready'}"}]
-        if stats.get("commits"):
-            wins.append({"title": "LOG", "body": f"{stats['commits']} commits\n{stats.get('loc', 0)} lines"})
-        add("retro", {"windows": wins}, 1.15, hard=True)
-
-    # 4 — proof: the two strongest measured numbers
-    for h in story.get("highlights", [])[:2]:
-        add("stat", {"value": h["value"], "label": h["label"]}, 0.72, hard=True)
-
-    # 5 — real source on screen
-    moments = story.get("code_moments", [])
-    if moments:
-        m = moments[0]
-        add("code", {"path": m["path"], "code": m["code"],
-                     "caption": m.get("caption", ""), "dur": 3.4}, 1.45)
-
-    # 6 — what it does
-    feats = story.get("features", [])
-    if len(feats) >= 2:
-        add("bullets", {"title": "what it does", "items": feats[:5]}, 1.35)
-
-    # 7 — the stack
-    langs = story.get("languages", [])
-    if len(langs) >= 2:
-        add("langs", {"title": "built with",
-                      "items": [{"name": l["name"], "share": l["share"], "color": l["color"]}
-                                for l in langs[:5]]}, 1.0, hard=True)
-
-    # 8 — a second code beat, if the repo has range
-    if len(moments) > 1 and duration >= 22:
-        m = moments[1]
-        add("code", {"path": m["path"], "code": m["code"],
-                     "caption": m.get("caption", ""), "dur": 3.0}, 1.25)
-
-    # 9 — history
-    tl = story.get("timeline", [])
-    if len(tl) >= 3 and duration >= 20:
-        add("timeline", {"title": "how it got here", "items": tl[-4:]}, 1.2)
-
-    # 10 — the scale beat
-    if duration >= 18:
-        add("globe", {
-            "kicker": "available now",
-            "text": "Ship it anywhere",
-            "sub": (f"Open source · {story['license']}" if story.get("license")
-                    else "Clone it and run it."),
-        }, 1.15, hard=True)
-
-    # 11 — the card people screenshot
-    add("endcard", {
-        "name": name,
-        "sub": story.get("url") or story.get("repo") or "",
-        "cta": "made with cased2.0",
-    }, 1.0, hard=True)
-
-    return plan
-
-
-#: Opening delimiters of a docstring, built rather than written literally so
-#: this file stays easy to patch.
-_DOCQ = ('"' * 3, "'" * 3)
-
-
 def _focus_line(code: list) -> int:
     """Which line of the signature function the callout should point at.
 
@@ -350,165 +255,6 @@ def _focus_line(code: list) -> int:
     return best_i
 
 
-def build_creative_plan(story: dict, ins: dict, dname: str, d: dict,
-                        rng: random.Random, duration: float) -> list:
-    """The long-form arc.
-
-    A minute of title cards and counters is a minute of nothing: by about
-    twenty seconds the viewer has learned the format and starts reading the
-    clock instead of the work. So this plan spends its middle on *structure*
-    -- what the repo is made of, how it fits together, which line is the
-    clever one -- and only returns to numbers once it has earned them.
-
-    Every beat is conditional on evidence. A repo with no import graph gets
-    no architecture shot rather than an empty one.
-    """
-    name = story["name"]
-    plan = []
-
-    def add(type_, data, weight, hard=False):
-        plan.append({"type": type_, "data": data, "weight": weight, "hard": hard})
-
-    # 1 -- cold open
-    add("title", {
-        "kicker": story.get("repo") or "introducing",
-        "text": _hook_line(story, rng),
-        "caps": False, "rule": True,
-    }, 1.0)
-
-    # 2 -- the thesis, in the author's own words
-    claims = ins.get("claims") or []
-    if claims:
-        add("bigquote", {"text": claims[0], "source": "from the README"}, 1.25, hard=True)
-
-    # 3 -- one number, to ground it
-    hl = story.get("highlights") or []
-    if hl:
-        add("stat", {"value": hl[0]["value"], "label": hl[0]["label"]}, 0.7, hard=True)
-
-    # 4 -- what is actually in here
-    if len(ins.get("tree") or []) >= 3:
-        add("tree", {"title": "what is in here", "items": ins["tree"][:8]}, 1.4)
-
-    # 5 -- how it is put together
-    mods = ins.get("modules") or []
-    if len(mods) >= 4:
-        hub = ins.get("hub")
-        # A node with no edges tells the viewer nothing and crowds the ring.
-        # Keep the connected graph; only fall back to isolated modules if the
-        # project genuinely has too few connections to fill a shot.
-        linked = [m for m in mods if m["deg_in"] or m["deg_out"]]
-        pool = linked if len(linked) >= 4 else mods
-        nodes = sorted(pool, key=lambda m: -(m["deg_in"] * 3 + m["deg_out"] + m["loc"] / 400))[:12]
-        idx = {m["id"]: i for i, m in enumerate(nodes)}
-        edges = []
-        for a, b in ins.get("edges", []):
-            ia, ib = mods[a]["id"], mods[b]["id"]
-            if ia in idx and ib in idx:
-                edges.append([idx[ia], idx[ib]])
-        note = f"{len(mods)} modules, {len(ins.get('edges', []))} imports between them"
-        if hub:
-            note += f" \u2014 everything leans on {hub.rsplit('/', 1)[-1]}"
-        add("arch", {
-            "title": "architecture",
-            "nodes": [{"label": m["label"], "hub": m["id"] == hub} for m in nodes],
-            "edges": edges[:22],
-            "note": note,
-        }, 1.5)
-
-    # 6 -- the process
-    if len(ins.get("pipeline") or []) >= 3:
-        add("flow", {"title": "how it runs", "items": ins["pipeline"][:5]}, 1.35, hard=True)
-
-    # 7 -- THE CENTREPIECE: the function the project is actually about
-    sig = ins.get("signature") or {}
-    if sig.get("code"):
-        # The shot renders at most CALLOUT_LINES rows, so the focus index has
-        # to be chosen against what will actually be on screen -- picking it
-        # from the full function silently points at a line nobody sees.
-        shown = sig["code"][:CALLOUT_LINES]
-        add("callout", {
-            "path": f"{sig['module']} \u2014 {sig['name']}()",
-            "code": shown,
-            "highlight": _focus_line(shown),
-            "label": "the idea",
-            "note": sig.get("doc") or f"{sig['lines']} lines, {sig.get('branches', 0)} branches",
-        }, 1.75)
-
-    # 8 -- a second look at real source, elsewhere in the tree
-    moments = story.get("code_moments") or []
-    if moments:
-        m = moments[0]
-        add("code", {"path": m["path"], "code": m["code"],
-                     "caption": m.get("caption", ""), "dur": 3.2}, 1.3)
-
-    # 9 -- what it knows how to do
-    techs = ins.get("techniques") or []
-    if len(techs) >= 3:
-        add("constellation", {"title": "techniques in the source",
-                              "items": [{"name": t["name"]} for t in techs[:8]]}, 1.3, hard=True)
-
-    # 10 -- the second number
-    if len(hl) > 1:
-        add("stat", {"value": hl[1]["value"], "label": hl[1]["label"]}, 0.7)
-
-    # 11 -- the shape of the work
-    cad = ins.get("cadence") or []
-    # A heatmap of one busy afternoon is an empty grid with a dot in it. Only
-    # earn the shot when there is a spread of activity to actually show.
-    active_days = sum(1 for v in cad if v)
-    if len(cad) >= 60 and active_days >= 12:
-        add("heatmap", {"title": "the last six months",
-                        "days": cad, "note": ins.get("peak_day", "")}, 1.25)
-
-    # 12 -- milestones
-    tl = story.get("timeline") or []
-    if len(tl) >= 3:
-        add("timeline", {"title": "how it got here", "items": tl[-4:]}, 1.2)
-
-    # 13 -- the stack
-    langs = story.get("languages") or []
-    if len(langs) >= 2:
-        add("langs", {"title": "built with",
-                      "items": [{"name": l["name"], "share": l["share"], "color": l["color"]}
-                                for l in langs[:5]]}, 1.0, hard=True)
-
-    # 14 -- what it does for you
-    feats = story.get("features") or []
-    if len(feats) >= 2:
-        add("bullets", {"title": "what it does", "items": feats[:5]}, 1.35)
-
-    # 15 -- this, not that
-    contrasts = ins.get("contrasts") or []
-    if contrasts:
-        add("compare", {
-            "left": contrasts[0]["left"], "right": contrasts[0]["right"],
-            "leftLabel": name, "rightLabel": "not",
-        }, 1.2, hard=True)
-
-    # 16 -- a closing claim
-    if len(claims) > 1:
-        add("bigquote", {"text": claims[1], "source": ""}, 1.15)
-
-    # 17 -- it ships
-    add("globe", {
-        "kicker": "available now",
-        "text": "Ship it anywhere",
-        "sub": (f"Open source \u00b7 {story['license']}" if story.get("license")
-                else "Clone it and run it."),
-    }, 1.1, hard=True)
-
-    # 18 -- the card people screenshot
-    add("endcard", {
-        "name": name,
-        "sub": story.get("url") or story.get("repo") or "",
-        "cta": "made with cased2.0",
-    }, 1.0, hard=True)
-
-    return plan
-
-
-
 def _pct(v) -> str:
     """A share as a person would write it.
 
@@ -520,14 +266,25 @@ def _pct(v) -> str:
     return (f"{f:.0f}" if f == int(f) else f"{f:g}") + "%"
 
 
-def build_atlas_plan(story: dict, ins: dict | None, d: dict,
-                     duration: float) -> list:
-    """A product film.
+def build_plan(story: dict, ins: dict | None, d: dict,
+               duration: float) -> list:
+    """The film. One grammar, whichever director draws it.
 
-    The other plans draw data about the repository. This one draws the
-    repository as a product: the files scattered as windows, the top-level
-    directories in orbit, recent work on a board, real source in an editor,
-    the language split on a dashboard.
+    This used to be one of three plans. The other two -- a short arc of title
+    cards and counters, and a long one of diagrams -- drew *data about* the
+    repository: a number on a shader, a ring of module names, a globe. They
+    were the same slideshow every time, and no amount of theming fixed that,
+    because the problem was never the colour.
+
+    So there is one plan now and it draws the repository *as a product*: the
+    files scattered as windows, the top-level directories in orbit, recent
+    work on a board, real source in an editor, the language split on a
+    dashboard. Past about forty seconds it keeps going into the same
+    register -- a second file, the README answered in a panel, the two sides
+    of the project split across a screen.
+
+    Every beat is conditional on evidence, so a repository with no import
+    graph gets no architecture shot rather than an empty one.
 
     Nothing here is invented. Every window, card, pill and figure comes out of
     the analyzer, so the frame stamp reads MEASURED throughout. The shots can
@@ -552,13 +309,19 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
         plan.append(shot)
 
     files = stats.get("files") or 0
+    feats = story.get("features") or []
     commits = stats.get("commits") or stats.get("commits_seen") or 0
 
     # 1 -- the scatter, then the name for it
+    sample = (story.get("files_sample") or [])[:13]
     add("appwindows", {
         "text": (plural(files, "file") + ". One *repository*.") if files
                 else f"{name}, *in one place*.",
         "count": max(6, min(files or 9, 13)), "seed": story.get("seed") or 7,
+        # Real paths, with the line count the analyzer counted.
+        "files": [{"path": f["path"], "loc": f.get("loc"),
+                   "bytes": f.get("bytes"), "lang": f.get("lang")}
+                  for f in sample],
     }, 1.15, "the shape", story.get("tagline", "")[:72], chap="what it is")
 
     # 2 -- the top-level directories, in orbit.
@@ -575,10 +338,13 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
                 seen.append(top)
         mods = seen[:8]
     if len(mods) >= 3:
+        counts = {t["path"]: t.get("files") for t in tree if t.get("path")}
         add("apporbit", {
             "title": "Everything it is made of.",
             "mark": name[:2].upper(),
-            "items": [{"name": m} for m in mods],
+            # The file count beside each name, where the analyzer counted one.
+            "items": [{"name": m, "meta": plural(counts[m], "file")}
+                      if counts.get(m) else {"name": m} for m in mods],
         }, 1.45, "orbit view", plural(len(mods), "top-level directory").replace(
             "directorys", "directories"), chap="layout")
 
@@ -613,6 +379,57 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
 
     # 4 -- real source, in an editor
     moments = story.get("code_moments") or []
+
+    def _editor_files(active: str) -> list:
+        """The sidebar, filled from the real tree rather than three names.
+
+        Four entries in a pane built for a project is the same emptiness the
+        rest of these screens had. The file sample is real paths the analyzer
+        walked, so the tree can be as deep as a tree.
+        """
+        paths: list = []
+        for f in (story.get("files_sample") or []):
+            if f["path"] not in paths:
+                paths.append(f["path"])
+        for other in moments:
+            if other["path"] not in paths:
+                paths.append(other["path"])
+        hot = stats.get("hottest_file")
+        if hot and hot not in paths:
+            paths.append(hot)
+        if active in paths:
+            paths.remove(active)
+        paths = [active] + sorted(paths)[:13]
+        # Three rows reading README.md is a tree that has lost the plot, so a
+        # repeated basename keeps the directory that tells them apart, and a
+        # label that is still ambiguous after that drops out rather than
+        # appearing twice.
+        counts: dict = {}
+        for p in paths:
+            base = p.rsplit("/", 1)[-1]
+            counts[base] = counts.get(base, 0) + 1
+        out, used = [], set()
+        for p in paths:
+            base = p.rsplit("/", 1)[-1]
+            label = "/".join(p.split("/")[-2:]) if counts[base] > 1 and "/" in p else base
+            if label in used:
+                continue
+            used.add(label)
+            out.append({"name": label, "depth": min(p.count("/"), 3),
+                        "active": p == active})
+        return out
+
+    def _status(path: str, code: list) -> list:
+        """The status bar cells -- each one measured, none of them filler."""
+        lang = next((l["name"] for l in langs
+                     if path.rsplit(".", 1)[-1].lower() in _EXT_OF.get(l["name"], ())), "")
+        cells = [stats.get("branch") or "main"]
+        if lang:
+            cells.append(lang)
+        cells.append(plural(len(code), "line") + " shown")
+        cells.append(path)
+        return cells
+
     if moments:
         m = moments[0]
         # Siblings come from the other code moments, which are real paths the
@@ -632,9 +449,9 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
             "branch": stats.get("branch") or "main",
             "action": "Run",
             "tab": m["path"].rsplit("/", 1)[-1],
-            "files": [{"name": f.rsplit("/", 1)[-1], "depth": f.count("/"),
-                       "active": f == m["path"]} for f in tree_files],
-            "code": m["code"][:9],
+            "files": _editor_files(m["path"]),
+            "code": m["code"][:14],
+            "status": _status(m["path"], m["code"][:14]),
         }, 1.6, "source", m.get("caption", "Real source, not a mockup."),
             chap="the code")
 
@@ -664,23 +481,112 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
             hard=True, chap="stack")
 
     # 6 -- what it does, in the author's words
-    feats = story.get("features") or []
     if len(feats) >= 2:
         add("bullets", {"title": "what it does", "items": feats[:5]}, 1.3,
             "capability", "Straight from the README.", chap="what it does")
 
-    # 7 -- the two audiences, if the insight found a contrast
+    # 7 -- the two audiences, if the deep read found a contrast
     if duration >= 45 and (ins or {}).get("techniques"):
-        techs = [t["name"] for t in ins["techniques"][:6]]
+        # Each side carries what was counted for it: how many places in the
+        # source a technique turned up, and how many files a language is in.
         add("appsplit", {
             "left": {"kicker": "in the source", "text": "What it *actually does*.",
-                     "items": techs[:3]},
+                     "items": [{"name": t["name"],
+                                "meta": plural(t["hits"], "place")}
+                               for t in ins["techniques"][:6]]},
             "right": {"kicker": "in the repo", "text": "What it is *made of*.",
-                      "items": [f"{l['name']} {_pct(l['share'])}" for l in langs[:3]]},
+                      "items": [{"name": f"{l['name']} {_pct(l['share'])}",
+                                 "meta": plural(l.get("files") or 0, "file")}
+                                for l in langs[:6]]},
         }, 1.25, "two sides", "Found by reading the code.", hard=True,
             chap="technique")
 
-    # 8 -- the card people screenshot
+    # 8 -- a long film keeps going in the same register rather than falling
+    # back to diagrams. Each of these is gated on the evidence it needs.
+    if duration >= 40:
+        # The README's own claim, answered in a panel. The words are the
+        # author's and the panel says so -- nothing here is generated.
+        claims = (ins or {}).get("claims") or story.get("claims") or []
+        if claims:
+            add("appchat", {
+                "app": story.get("repo") or name,
+                "title": "In their *own words*.",
+                "agent": "README",
+                "messages": [
+                    {"from": "you", "text": f"What is {name}?"},
+                    {"text": _ellipsis(claims[0], 150)},
+                ] + ([
+                    {"from": "you", "text": "What does it do?"},
+                    {"text": _ellipsis(feats[0], 150)},
+                ] if feats else []),
+                "prompt": "Straight from the repository",
+            }, 1.2, "the claim", "Quoted, not generated.", chap="the claim")
+
+        # The work rate, on the screen a product would show it on. Every
+        # figure is a count of real commits in a real window of days.
+        cad = (ins or {}).get("cadence") or []
+        active = sum(1 for v in cad if v)
+        if len(cad) >= 60 and active >= 12:
+            weeks = [sum(cad[i:i + 7]) for i in range(0, len(cad) - 6, 7)]
+            busiest = max(weeks) if weeks else 0
+            add("appdash", {
+                "app": story.get("repo") or name,
+                "title": "The work *rate*.",
+                "value": str(active), "delta": "days with a commit",
+                "label": f"of the last {len(cad)} days",
+                "series": weeks[-16:] or [0, 0],
+                "railActive": 5,
+                "topline": [
+                    {"label": "commits", "value": sum(cad)},
+                    {"label": "active days", "value": active},
+                    {"label": "weeks", "value": len(weeks)},
+                    {"label": "busiest week", "value": busiest},
+                ],
+                "rows": [{"label": f"week {len(weeks) - i}", "value": str(w),
+                          "frac": (w / busiest) if busiest else 0.0, "color": None}
+                         for i, w in enumerate(reversed(weeks[-5:]))],
+            }, 1.3, "cadence", (ins or {}).get("peak_day", "") or
+                "Counted from the commit dates.", hard=True, chap="cadence")
+
+        # What the source turned out to know how to do, in the same ring the
+        # directories were drawn in.
+        techs = [t["name"] for t in ((ins or {}).get("techniques") or [])][:8]
+        if len(techs) >= 4:
+            add("apporbit", {
+                "title": "What the code *knows how to do*.",
+                "mark": name[:2].upper(),
+                "items": [{"name": t} for t in techs],
+            }, 1.3, "technique", "Found by reading the source, not the README.",
+                chap="technique")
+
+        # The project's own documented commands, actually running. The lines
+        # are the README's, not a script somebody imagined.
+        cmds = [c for c in (story.get("commands") or []) if c][:3]
+        if cmds:
+            add("terminalrun", {
+                "title": stats.get("branch") or "bash",
+                "dur": 3.4,
+                "lines": [{"kind": "cmd", "text": f"$ {_ellipsis(c, 64)}"} for c in cmds],
+            }, 1.2, "run it", "The commands the README documents.", chap="running it")
+
+        # A second file, further into the tree than the first.
+        if len(moments) > 1:
+            m2 = moments[1]
+            add("appcode", {
+                "app": story.get("repo") or name,
+                "title": "And *here*.",
+                "root": m2["path"].split("/")[0],
+                "branch": stats.get("branch") or "main",
+                "action": "Test",
+                "tab": m2["path"].rsplit("/", 1)[-1],
+                "files": _editor_files(m2["path"]),
+                "code": m2["code"][:14],
+                "status": _status(m2["path"], m2["code"][:14]),
+                "railActive": 3,
+            }, 1.5, "source", m2.get("caption", "Real source, not a mockup."),
+                chap="deeper in")
+
+    # 9 -- the card people screenshot
     add("endcard", {
         "name": name,
         "sub": story.get("url") or story.get("repo") or "",
@@ -688,7 +594,6 @@ def build_atlas_plan(story: dict, ins: dict | None, d: dict,
     }, 1.0, "end", "", hard=True)
 
     return plan
-
 
 def decorate(plan: list, d: dict, rng: random.Random,
              theme_spec: dict) -> None:
@@ -745,14 +650,10 @@ def compose(story: dict, beatmap: dict, duration: float = 24.0,
     dname, d = pick(director, story.get("kind", "project"))
     rng = random.Random(seed or story.get("seed") or 1)
 
-    # The atlas director draws the repository as a product; passing an insight
-    # report switches any other director to the long-form arc.
-    if d.get("hud"):
-        plan = build_atlas_plan(story, insight, d, duration)
-    elif insight:
-        plan = build_creative_plan(story, insight, dname, d, rng, duration)
-    else:
-        plan = build_plan(story, dname, d, rng, duration)
+    # One grammar, whichever director was picked. The director sets pacing,
+    # bed and transition vocabulary; it no longer decides whether the film is
+    # a product film, because the slideshow alternative is gone.
+    plan = build_plan(story, insight, d, duration)
 
     # The director names a default theme; --theme overrides it. Look and
     # pacing are independent axes, so any theme composes with any director.
