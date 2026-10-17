@@ -105,6 +105,8 @@ class Story:
     features: list = field(default_factory=list)
     commands: list = field(default_factory=list)
     timeline: list = field(default_factory=list)
+    #: Tools the repository carries, each with the file that proves it.
+    toolchain: list = field(default_factory=list)
     #: A spread of real file paths, for the shots that draw files as files.
     files_sample: list = field(default_factory=list)
     kind: str = "project"
@@ -196,6 +198,56 @@ def _strip_md(text: str) -> str:
     text = re.sub(r"<[^>]+>", "", text)                        # html
     text = re.sub(r"[`*_#>]+", "", text)                       # md syntax
     return text
+
+
+#: What a file at a given path proves about the toolchain.
+#:
+#: A film that says "Docker" is making a claim; one that says "Docker" over
+#: the word `Dockerfile` is reporting a file it found. Every entry here is a
+#: path pattern and the one thing its presence actually establishes -- never
+#: a guess about how the tool is used, only that the repository carries it.
+TOOLCHAIN = [
+    (re.compile(r"^\.github/workflows/"), "GitHub Actions", "check"),
+    (re.compile(r"^\.gitlab-ci\.yml$"), "GitLab CI", "check"),
+    (re.compile(r"^(Dockerfile|.*/Dockerfile)$"), "Docker", "board"),
+    (re.compile(r"^docker-compose\.ya?ml$"), "Docker Compose", "board"),
+    (re.compile(r"^(k8s|kubernetes|charts|helm)/"), "Kubernetes", "board"),
+    (re.compile(r"\.tf$"), "Terraform", "board"),
+    (re.compile(r"^(pyproject\.toml|setup\.py|setup\.cfg)$"), "Python packaging", "gear"),
+    (re.compile(r"^requirements.*\.txt$"), "pip", "gear"),
+    (re.compile(r"^package\.json$"), "npm", "gear"),
+    (re.compile(r"^(pnpm-lock\.yaml|pnpm-workspace\.yaml)$"), "pnpm", "gear"),
+    (re.compile(r"^Cargo\.toml$"), "Cargo", "gear"),
+    (re.compile(r"^go\.mod$"), "Go modules", "gear"),
+    (re.compile(r"^(Makefile|makefile)$"), "Make", "gear"),
+    (re.compile(r"^(tsconfig\.json)$"), "TypeScript", "bolt"),
+    (re.compile(r"^(vite\.config\.[jt]s)$"), "Vite", "bolt"),
+    (re.compile(r"^(next\.config\.[jm]?[jt]s)$"), "Next.js", "bolt"),
+    (re.compile(r"^(tailwind\.config\.[jt]s)$"), "Tailwind", "bolt"),
+    (re.compile(r"^(playwright\.config\.[jt]s)$"), "Playwright", "bolt"),
+    (re.compile(r"^(pytest\.ini|conftest\.py|tox\.ini)$"), "pytest", "check"),
+    (re.compile(r"^(jest\.config\.[jt]s)$"), "Jest", "check"),
+    (re.compile(r"^(\.pre-commit-config\.yaml)$"), "pre-commit", "check"),
+    (re.compile(r"^(ruff\.toml|\.ruff\.toml)$"), "Ruff", "check"),
+    (re.compile(r"^(\.eslintrc.*|eslint\.config\.[jm]?js)$"), "ESLint", "check"),
+    (re.compile(r"^(vercel\.json)$"), "Vercel", "inbox"),
+    (re.compile(r"^(netlify\.toml)$"), "Netlify", "inbox"),
+    (re.compile(r"^(fly\.toml)$"), "Fly.io", "inbox"),
+    (re.compile(r"^(\.devcontainer/)"), "Dev Containers", "board"),
+    (re.compile(r"^(CNAME|_config\.yml)$"), "GitHub Pages", "inbox"),
+]
+
+
+def toolchain_from(paths) -> list:
+    """Which tools the repository demonstrably carries, and the proof."""
+    out, seen = [], set()
+    for rel in paths:
+        for rx, name, icon in TOOLCHAIN:
+            if name in seen or not rx.search(rel):
+                continue
+            seen.add(name)
+            out.append({"name": name, "note": rel, "icon": icon})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -417,7 +469,9 @@ def survey_sources(root: Path, story: Story) -> list:
     dirs: Counter = Counter()
 
     seen_files: list = []
+    all_rels: list = []
     for path, rel in walk_sources(root):
+        all_rels.append(rel)
         ext = path.suffix.lower()
         lang_info = LANGS.get(ext)
         total_files += 1
@@ -475,6 +529,7 @@ def survey_sources(root: Path, story: Story) -> list:
         if len(sample) >= 14:
             break
     story.files_sample = sample
+    story.toolchain = toolchain_from(all_rels)[:8]
 
     ranked = [
         {"name": lang, "loc": loc, "files": files_by_lang[lang],

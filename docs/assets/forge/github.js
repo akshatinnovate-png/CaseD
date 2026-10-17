@@ -353,6 +353,8 @@ export async function analyzeRepo({ owner, repo }, token, onStep = () => {}) {
     // The CLI counts lines here because it has the files on disk; the API
     // only gives a byte size, so that is what this reports.
     files_sample: filesSample(tree),
+    // Tools the repository carries, each with the file that proves it.
+    toolchain: toolchainFrom(tree.filter(t => t.type === 'blob').map(t => t.path)),
     // The raw entries, with type and size, so the code-shot picker can rank
     // files without fetching any of them first.
     tree_raw: tree.map(t => ({ path: t.path, type: t.type, size: t.size || 0 })),
@@ -372,6 +374,58 @@ export async function getFile({ owner, repo }, path, token, ref) {
                      token, { allow404: true });
   if (!j || Array.isArray(j) || !j.content) return null;
   return b64(j.content);
+}
+
+/**
+ * What a file at a given path proves about the toolchain.
+ *
+ * Mirrors TOOLCHAIN in cased/analyze.py. A film that says "Docker" is making
+ * a claim; one that says "Docker" over the word `Dockerfile` is reporting a
+ * file it found, which is the only kind of statement this project makes.
+ */
+const TOOLCHAIN = [
+  [/^\.github\/workflows\//, 'GitHub Actions', 'check'],
+  [/^\.gitlab-ci\.yml$/, 'GitLab CI', 'check'],
+  [/^(Dockerfile|.*\/Dockerfile)$/, 'Docker', 'board'],
+  [/^docker-compose\.ya?ml$/, 'Docker Compose', 'board'],
+  [/^(k8s|kubernetes|charts|helm)\//, 'Kubernetes', 'board'],
+  [/\.tf$/, 'Terraform', 'board'],
+  [/^(pyproject\.toml|setup\.py|setup\.cfg)$/, 'Python packaging', 'gear'],
+  [/^requirements.*\.txt$/, 'pip', 'gear'],
+  [/^package\.json$/, 'npm', 'gear'],
+  [/^(pnpm-lock\.yaml|pnpm-workspace\.yaml)$/, 'pnpm', 'gear'],
+  [/^Cargo\.toml$/, 'Cargo', 'gear'],
+  [/^go\.mod$/, 'Go modules', 'gear'],
+  [/^(Makefile|makefile)$/, 'Make', 'gear'],
+  [/^tsconfig\.json$/, 'TypeScript', 'bolt'],
+  [/^vite\.config\.[jt]s$/, 'Vite', 'bolt'],
+  [/^next\.config\.[jm]?[jt]s$/, 'Next.js', 'bolt'],
+  [/^tailwind\.config\.[jt]s$/, 'Tailwind', 'bolt'],
+  [/^playwright\.config\.[jt]s$/, 'Playwright', 'bolt'],
+  [/^(pytest\.ini|conftest\.py|tox\.ini)$/, 'pytest', 'check'],
+  [/^jest\.config\.[jt]s$/, 'Jest', 'check'],
+  [/^\.pre-commit-config\.yaml$/, 'pre-commit', 'check'],
+  [/^(ruff\.toml|\.ruff\.toml)$/, 'Ruff', 'check'],
+  [/^(\.eslintrc.*|eslint\.config\.[jm]?js)$/, 'ESLint', 'check'],
+  [/^vercel\.json$/, 'Vercel', 'inbox'],
+  [/^netlify\.toml$/, 'Netlify', 'inbox'],
+  [/^fly\.toml$/, 'Fly.io', 'inbox'],
+  [/^\.devcontainer\//, 'Dev Containers', 'board'],
+  [/^(CNAME|_config\.yml)$/, 'GitHub Pages', 'inbox'],
+];
+
+/** Which tools the repository demonstrably carries, and the proof. */
+function toolchainFrom(paths, limit = 8) {
+  const out = [], seen = new Set();
+  for (const rel of paths) {
+    for (const [rx, name, icon] of TOOLCHAIN) {
+      if (seen.has(name) || !rx.test(rel)) continue;
+      seen.add(name);
+      out.push({ name, note: rel, icon });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
 }
 
 /**

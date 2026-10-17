@@ -249,6 +249,28 @@ python3 -m cased . --creative --plan-only        # read the edit first
 Creative mode writes an extra `insight.json` alongside the usual outputs —
 the full deep read, including the graph and every technique with its evidence.
 
+### Chapters
+
+A film is built as acts, and each one is announced on a numbered card:
+
+```
+          what it is  ->  what it does  ->  how it works
+      ->  the code  ->  what it is made of  ->  the work
+```
+
+Dense screens in no order are still a jumble: the viewer has to assemble the
+argument themselves and mostly does not bother. So every act opens on a full
+colour field carrying its number out of the total — `03 / 06` — and the frame
+marker names that act for as long as it runs.
+
+An act with no evidence behind it does not appear and does not take a number,
+so the count on screen is always the count of chapters the film really has. A
+repository with no import graph gets five chapters, not a gap where the sixth
+would be.
+
+Under 30 seconds the cards would outnumber the screens, so the acts still
+order the film but announce themselves only in the frame marker.
+
 ### Shot vocabulary
 
 Every film is a product film. There used to be three plans — a short arc of
@@ -268,17 +290,31 @@ So there is one grammar now, and it draws the repository as software.
 | `appdash` | the language split as a dashboard: topline, chart, a row per language |
 | `bullets` | what it does, in the README's own words |
 
-Past about forty seconds it keeps going in the same register, each beat
-gated on the evidence it needs:
+Longer films fill their chapters out, each beat gated on the evidence it
+needs:
 
 | Shot | Shows | Needs |
 |---|---|---|
-| `appsplit` | techniques against the stack, both sides counted | the deep read |
-| `appchat` | the README's claim, answered in a panel | a claim |
+| `chaptercard` | the act, numbered out of the total | 30s+ |
+| `archmap` | the import graph as columns, left calling right | 4 modules, 34s+ |
+| `surfaces` | the toolchain, each tile over the file that proves it | 3 tools, 34s+ |
+| `appchat` | the README's claim, answered in a panel | a claim, 34s+ |
+| `callout` | the signature function, the working line called out | the deep read, 40s+ |
 | `appdash` | the commit rate by week | 60 days, 12 of them active |
-| `apporbit` | what the source knows how to do | 4 techniques |
+| `apporbit` | what the source knows how to do | 4 techniques, 40s+ |
 | `terminalrun` | the project's own documented commands | commands in the README |
-| `appcode` | a second file, further into the tree | 2 code moments |
+| `appsplit` | techniques against the stack, both sides counted | the deep read, 45s+ |
+| `appcode` | a second file, further into the tree | 2 code moments, 50s+ |
+
+`archmap` replaced the old `arch` ring, which put every module the same
+distance from the middle and so said nothing about direction. Columns say it
+immediately — left depends on right — and the headings are the repository's
+own directory names, so they are measured too rather than invented layer
+labels.
+
+Every `surfaces` tile names the file underneath it. "Docker" is a claim;
+"Docker" over the word `Dockerfile` is a measurement, and the composer will
+not emit a tile it cannot cite a path for.
 
 The other 60-odd shot types in the engine are still there and still
 documented — `cased-slim` hand-writes shot lists against all of them.

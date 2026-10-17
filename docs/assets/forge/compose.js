@@ -207,6 +207,15 @@ export function layOut(planIn, duration, beatmap) {
  * Not the def, not the docstring, not a bare `return x` — the line doing the
  * actual work, which is usually the densest expression in the body.
  */
+/**
+ * Docstring openers, so the callout does not point at one.
+ *
+ * This lived next to the long-form plan that was deleted, which left
+ * `focusLine` referring to a name that no longer existed. Nothing noticed
+ * because nothing called `focusLine` any more -- it does again now.
+ */
+const DOCQ = ['"""', "'''"];
+
 export function focusLine(code) {
   let best = -1, bestI = 0;
   code.forEach((raw, i) => {
@@ -249,6 +258,121 @@ const EXT_OF = {
 
 // -------------------------------------------------------------------- plan
 
+/** One measured sentence about the import graph, or nothing. */
+function archNote(ins) {
+  const mods = (ins && ins.modules) || [];
+  const edges = (ins && ins.edges) || [];
+  if (mods.length < 4) return '';
+  let note = `${plural(mods.length, 'module')}, ${plural(edges.length, 'import')} between them`;
+  const hub = ins && ins.hub;
+  if (hub) note += ` — everything leans on ${hub.split('/').pop()}`;
+  return note;
+}
+
+/**
+ * The import graph as columns, left depending on right.
+ *
+ * The ring the old `arch` shot drew put every module the same distance from
+ * the middle, which says nothing about direction. Grouping by directory and
+ * ordering the columns by how much each is depended upon says it at a
+ * glance -- and the directory names are real, so the headings are measured
+ * too rather than invented layer names.
+ */
+function archColumns(ins) {
+  const mods = (ins && ins.modules) || [];
+  const edges = (ins && ins.edges) || [];
+  if (mods.length < 4) return null;
+
+  const byDir = new Map();
+  mods.forEach((m, i) => {
+    const key = m.dir || '(root)';
+    if (!byDir.has(key)) byDir.set(key, []);
+    byDir.get(key).push([i, m]);
+  });
+
+  // A column earns its place by weight, not by alphabet.
+  const weight = g => g.reduce((a, [, m]) => a + m.loc + 90 * (m.deg_in + m.deg_out), 0);
+  let dirs = [...byDir.entries()].sort((x, y) => weight(y[1]) - weight(x[1])).slice(0, 4);
+  if (dirs.length < 2) return null;
+  // Left to right: the most depended-upon directory sits on the right, the
+  // way a call graph reads.
+  dirs.sort((x, y) => x[1].reduce((a, [, m]) => a + m.deg_in, 0)
+                    - y[1].reduce((a, [, m]) => a + m.deg_in, 0));
+
+  const nodes = [], index = new Map();
+  const hub = ins && ins.hub;
+  dirs.forEach(([, group], ci) => {
+    const pick = [...group].sort((x, y) =>
+      (y[1].deg_in * 3 + y[1].deg_out + y[1].loc / 400)
+      - (x[1].deg_in * 3 + x[1].deg_out + x[1].loc / 400)).slice(0, 4);
+    for (const [mi, m] of pick) {
+      index.set(mi, nodes.length);
+      nodes.push({ label: m.label, col: ci, note: String(m.loc), hub: m.id === hub });
+    }
+  });
+  if (nodes.length < 4) return null;
+
+  const seen = new Set(), out = [];
+  for (const [a, b] of edges) {
+    if (!index.has(a) || !index.has(b)) continue;
+    const ia = index.get(a), ib = index.get(b);
+    if (ia === ib) continue;
+    const key = `${ia}:${ib}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push([ia, ib]);
+  }
+  const heads = [], used = new Set();
+  for (const [dname] of dirs) {
+    const leaf = dname.split('/').pop() || dname;
+    // Keep more of the path only when the leaf alone would repeat.
+    heads.push(used.has(leaf) ? dname : leaf);
+    used.add(leaf);
+  }
+  return { columns: heads, nodes, edges: out.slice(0, 26) };
+}
+
+/**
+ * Flatten the acts into a shot list, numbering the ones that survived.
+ *
+ * An act whose evidence never turned up contributes nothing and takes no
+ * number, so a film that could not read an import graph says `04 / 05`
+ * rather than leaving a gap where the chapter would have been. The frame
+ * marker carries the act's name for every shot inside it, which is what
+ * stops a run of dense screens reading as one long undifferentiated take.
+ */
+function layActs(acts, useCards) {
+  const live = acts.filter(a => a.beats.length);
+  const total = live.filter(a => a.card && a.title).length;
+  const plan = [];
+  let n = 0;
+  for (const a of live) {
+    let mark = '';
+    if (a.card && a.title) {
+      n++;
+      mark = `${String(n).padStart(2, '0')} · ${a.title.toLowerCase()}`;
+      if (useCards) {
+        plan.push({
+          type: 'chaptercard',
+          data: {
+            number: String(n).padStart(2, '0'),
+            total: String(total).padStart(2, '0'),
+            text: a.title, sub: a.sub, invert: n % 2 === 1,
+          },
+          // Light: a card is a breath between two dense screens, not a
+          // scene in its own right.
+          weight: 0.55, hard: true, section: 'chapter', chapter: mark,
+        });
+      }
+    }
+    for (const b of a.beats) {
+      if (mark) b.chapter = mark;
+      plan.push(b);
+    }
+  }
+  return plan;
+}
+
 /**
  * The film. One grammar, whichever director draws it.
  *
@@ -275,22 +399,34 @@ export function buildPlan(story, ins, d, duration) {
   const name = story.name;
   const stats = story.stats || {};
   const langs = story.languages || [];
-  const plan = [];
-  let chapter = 0;
-  const add = (type, data, weight, section = '', caption = '', hard = false, chap = '') => {
-    chapter++;
+
+  // Below this runtime the chapter cards would outnumber the screens, so the
+  // acts still order the film but announce themselves only in the frame
+  // marker. Named `useCards` because the board beat further down builds a
+  // list called `cards`, and a flag a later line can quietly overwrite is a
+  // flag that will be.
+  const useCards = duration >= 30;
+
+  const acts = [];
+  const act = (title, sub = '', card = true) => {
+    acts.push({ title, sub, card, beats: [] });
+  };
+  const add = (type, data, weight, section = '', caption = '', hard = false) => {
     const shot = { type, data, weight, hard };
     if (section) shot.section = section;
     if (caption) shot.caption = caption;
-    if (chap) shot.chapter = `${String(chapter).padStart(2, '0')} \u00b7 ${chap}`;
-    plan.push(shot);
+    acts[acts.length - 1].beats.push(shot);
   };
 
   const files = stats.files || 0;
   const feats = story.features || [];
   const commits = stats.commits || stats.commits_seen || 0;
+  const moments = story.code_moments || [];
+  const tree = (ins && ins.tree) || story.tree || [];
 
-  // 1 -- the scatter, then the name for it
+  // ---- the cold open: no card, just the repository --------------------
+  act('', '', false);
+  // the scatter, then the name for it
   const sample = (story.files_sample || []).slice(0, 13);
   add('appwindows', {
     text: files ? `${plural(files, 'file')}. One *repository*.` : `${name}, *in one place*.`,
@@ -299,10 +435,11 @@ export function buildPlan(story, ins, d, duration) {
     files: sample.map(f => ({
       path: f.path, loc: f.loc ?? null, bytes: f.bytes ?? null, lang: f.lang ?? null,
     })),
-  }, 1.15, 'the shape', (story.tagline || '').slice(0, 72), false, 'what it is');
+  }, 1.15, 'the shape', (story.tagline || '').slice(0, 72));
 
-  // 2 -- the top-level directories, in orbit
-  const tree = (ins && ins.tree) || story.tree || [];
+  // ---- what it is -----------------------------------------------------
+  act('What it is', (story.tagline || '').slice(0, 96));
+  // the top-level directories, in orbit
   let mods = tree.map(t => t.path).filter(p => p && p !== '(root)').slice(0, 8);
   if (mods.length < 3) {
     const seen = [];
@@ -322,46 +459,90 @@ export function buildPlan(story, ins, d, duration) {
       items: mods.map(m => (counts[m]
         ? { name: m, meta: plural(counts[m], 'file') } : { name: m })),
     }, 1.45, 'orbit view',
-      `${mods.length} top-level ${mods.length === 1 ? 'directory' : 'directories'}`,
-      false, 'layout');
+      `${mods.length} top-level ${mods.length === 1 ? 'directory' : 'directories'}`);
   }
-
-  // 3 -- recent work, as a board
-  const tl = story.timeline || [];
-  if (tl.length >= 3) {
-    // A card carries what the commit actually was: the subject, the kind of
-    // change its prefix declares, and its position in the history.
-    const kind = (text) => {
-      const head = text.slice(0, 16).includes(':')
-        ? text.split(':')[0].toLowerCase() : text.toLowerCase();
-      for (const [key, tag] of [['feat', 'feature'], ['add', 'feature'],
-                                ['fix', 'fix'], ['perf', 'speed'],
-                                ['refactor', 'refactor'], ['doc', 'docs'],
-                                ['test', 'tests']]) {
-        if (head.startsWith(key)) return tag;
-      }
-      return 'change';
-    };
-    const recent = tl.slice(-9);
-    const cards = recent.map((t, i) => ({
-      text: ellipsis(t.text, 44), tag: kind(t.text),
-      meta: `#${tl.length - recent.length + i + 1}`,
-    }));
-    const third = Math.max(1, Math.floor(cards.length / 3));
-    add('appboard', {
+  // The README's own claim, answered in a panel. The words are the
+  // author's and the panel says so -- nothing here is generated.
+  const claims = (ins && ins.claims) || story.claims || [];
+  if (claims.length && duration >= 34) {
+    add('appchat', {
       app: story.full_name || story.repo || name,
-      title: 'The work, *on one board*.',
-      sprint: commits ? plural(commits, 'commit') : 'recent work',
-      columns: [
-        { name: 'earlier', cards: cards.slice(0, third) },
-        { name: 'then', cards: cards.slice(third, third * 2) },
-        { name: 'latest', cards: cards.slice(third * 2) },
+      title: 'In their *own words*.',
+      agent: 'README',
+      messages: [
+        { from: 'you', text: `What is ${name}?` },
+        { text: ellipsis(claims[0], 150) },
+        ...(feats.length ? [
+          { from: 'you', text: 'What does it do?' },
+          { text: ellipsis(feats[0], 150) },
+        ] : []),
       ],
-    }, 1.4, 'history', 'Every card is a real commit.', true, 'history');
+      prompt: 'Straight from the repository',
+    }, 1.2, 'the claim', 'Quoted, not generated.');
   }
 
-  // 4 -- real source, in an editor
-  const moments = story.code_moments || [];
+  // ---- what it does ---------------------------------------------------
+  act('What it does', 'Straight from the README.');
+  // what it does, in the author's words
+  if (feats.length >= 2) {
+    add('bullets', { title: 'what it does', items: feats.slice(0, 5) },
+        1.3, 'capability', 'Straight from the README.');
+  }
+  // The project's own documented commands, actually running. The lines
+  // are the README's, not a script somebody imagined.
+  const cmds = (story.commands || []).filter(Boolean).slice(0, 3);
+  if (cmds.length && duration >= 40) {
+    add('terminalrun', {
+      title: stats.branch || 'bash',
+      dur: 3.4,
+      lines: cmds.map(c => ({ kind: 'cmd', text: `$ ${ellipsis(c, 64)}` })),
+    }, 1.2, 'run it', 'The commands the README documents.');
+  }
+
+  // What the source turned out to know how to do, in the same ring the
+  // directories were drawn in.
+  const techs = (((ins && ins.techniques) || []).map(t => t.name)).slice(0, 8);
+  if (techs.length >= 4 && duration >= 40) {
+    add('apporbit', {
+      title: 'What the code *knows how to do*.',
+      mark: name.slice(0, 2).toUpperCase(),
+      items: techs.map(t => ({ name: t })),
+    }, 1.3, 'technique', 'Found by reading the source, not the README.');
+  }
+
+  // ---- how it works ---------------------------------------------------
+  act('How it works', archNote(ins));
+  // How the modules actually depend on each other, in columns rather than a
+  // ring: left calls right, and the headings name the layers.
+  if (duration >= 34) {
+    const amap = archColumns(ins);
+    if (amap) {
+      add('archmap', {
+        title: 'How it *fits together*.',
+        columns: amap.columns, nodes: amap.nodes, edges: amap.edges,
+        note: archNote(ins),
+      }, 1.5, 'architecture');
+    }
+  }
+  // the two audiences, if the deep read found techniques
+  if (duration >= 45 && ins && (ins.techniques || []).length) {
+    // Each side carries what was counted for it: how many places in the
+    // source a technique turned up, and how many files a language is in.
+    add('appsplit', {
+      left: { kicker: 'in the source', text: 'What it *actually does*.',
+              items: ins.techniques.slice(0, 6).map(t => ({
+                name: t.name, meta: plural(t.hits, 'place'),
+              })) },
+      right: { kicker: 'in the repo', text: 'What it is *made of*.',
+               items: langs.slice(0, 6).map(l => ({
+                 name: `${l.name} ${pct(l.share)}`, meta: plural(l.files || 0, 'file'),
+               })) },
+    }, 1.25, 'two sides', 'Found by reading the code.', true);
+  }
+
+  // ---- the code -------------------------------------------------------
+  act('The code', moments.length ? (moments[0].caption || '') : '');
+  // real source, in an editor
 
   /**
    * The sidebar, filled from the real tree rather than three names. Four
@@ -423,10 +604,44 @@ export function buildPlan(story, ins, d, duration) {
       files: editorFiles(m.path),
       code: (m.code || []).slice(0, 14),
       status: editorStatus(m.path, (m.code || []).slice(0, 14)),
-    }, 1.6, 'source', m.caption || 'Real source, not a mockup.', false, 'the code');
+    }, 1.6, 'source', m.caption || 'Real source, not a mockup.');
+  }
+  // The function the project is actually about, with the working line called
+  // out. A second editor pane would be the same picture twice; this is the
+  // one shot from the old vocabulary worth keeping, because it says
+  // something an editor screenshot cannot -- which line matters.
+  const sig = (ins && ins.signature) || {};
+  if (sig.code && duration >= 40) {
+    const shown = sig.code.slice(0, CALLOUT_LINES);
+    add('callout', {
+      path: `${sig.module} \u2014 ${sig.name}()`,
+      code: shown,
+      highlight: focusLine(shown),
+      label: 'the idea',
+      note: sig.doc
+        || `${plural(sig.lines, 'line')}, ${plural(sig.branches || 0, 'branch')}`,
+    }, 1.6, 'the idea', 'The line the rest of it is built around.');
+  }
+  // A second file, further into the tree than the first.
+  if (moments.length > 1 && duration >= 50) {
+    const m2 = moments[1];
+    add('appcode', {
+      app: story.full_name || story.repo || name,
+      title: 'And *here*.',
+      root: m2.path.split('/')[0],
+      branch: story.branch || stats.branch || 'main',
+      action: 'Test',
+      tab: m2.path.split('/').pop(),
+      files: editorFiles(m2.path),
+      code: (m2.code || []).slice(0, 14),
+      status: editorStatus(m2.path, (m2.code || []).slice(0, 14)),
+      railActive: 3,
+    }, 1.5, 'source', m2.caption || 'Real source, not a mockup.');
   }
 
-  // 5 -- the stack, on a dashboard
+  // ---- what it is made of ---------------------------------------------
+  act('What it is made of', langs.length ? plural(langs.length, 'language') : '');
+  // the stack, on a dashboard
   if (langs.length >= 2) {
     const hero = langs[0];
     add('appdash', {
@@ -448,133 +663,98 @@ export function buildPlan(story, ins, d, duration) {
         label: l.name, value: pct(l.share),
         frac: l.share / Math.max(langs[0].share, 1), color: l.color ?? null,
       })),
-    }, 1.35, 'stack', `${langs.length} languages, measured from the tree.`, true, 'stack');
+    }, 1.35, 'stack', `${langs.length} languages, measured from the tree.`, true);
   }
-
-  // 6 -- what it does, in the author's words
-  if (feats.length >= 2) {
-    add('bullets', { title: 'what it does', items: feats.slice(0, 5) },
-        1.3, 'capability', 'Straight from the README.', false, 'what it does');
-  }
-
-  // 7 -- the two audiences, if the deep read found techniques
-  if (duration >= 45 && ins && (ins.techniques || []).length) {
-    // Each side carries what was counted for it: how many places in the
-    // source a technique turned up, and how many files a language is in.
-    add('appsplit', {
-      left: { kicker: 'in the source', text: 'What it *actually does*.',
-              items: ins.techniques.slice(0, 6).map(t => ({
-                name: t.name, meta: plural(t.hits, 'place'),
-              })) },
-      right: { kicker: 'in the repo', text: 'What it is *made of*.',
-               items: langs.slice(0, 6).map(l => ({
-                 name: `${l.name} ${pct(l.share)}`, meta: plural(l.files || 0, 'file'),
-               })) },
-    }, 1.25, 'two sides', 'Found by reading the code.', true, 'technique');
-  }
-
-  // 8 -- a long film keeps going in the same register rather than falling
-  // back to diagrams. Each of these is gated on the evidence it needs.
-  if (duration >= 40) {
-    // The README's own claim, answered in a panel. The words are the
-    // author's and the panel says so -- nothing here is generated.
-    const claims = (ins && ins.claims) || story.claims || [];
-    if (claims.length) {
-      add('appchat', {
-        app: story.full_name || story.repo || name,
-        title: 'In their *own words*.',
-        agent: 'README',
-        messages: [
-          { from: 'you', text: `What is ${name}?` },
-          { text: ellipsis(claims[0], 150) },
-          ...(feats.length ? [
-            { from: 'you', text: 'What does it do?' },
-            { text: ellipsis(feats[0], 150) },
-          ] : []),
-        ],
-        prompt: 'Straight from the repository',
-      }, 1.2, 'the claim', 'Quoted, not generated.', false, 'the claim');
+  // The tools the repository carries, each over the file that proves it.
+  if (duration >= 34) {
+    const tiles = [...(story.toolchain || [])];
+    // Languages fill the row out with their own measured file counts -- the
+    // same evidence rule, counted rather than named.
+    for (const l of langs.slice(0, 4)) {
+      if (tiles.length >= 6) break;
+      if (l.files) tiles.push({ name: l.name, note: plural(l.files, 'file'), icon: 'bolt' });
     }
+    if (tiles.length >= 3) {
+      add('surfaces', {
+        title: 'Built with *what it says it is*.',
+        items: tiles.slice(0, 6),
+      }, 1.25, 'toolchain', 'Every tile names the file that proves it.', true);
+    }
+  }
 
-    // The work rate, on the screen a product would show it on. Every figure
-    // is a count of real commits in a real window of days.
-    const cad = (ins && ins.cadence) || [];
-    const active = cad.filter(v => v).length;
-    if (cad.length >= 60 && active >= 12) {
-      const weeks = [];
-      for (let i = 0; i + 7 <= cad.length; i += 7) {
-        weeks.push(cad.slice(i, i + 7).reduce((a, b) => a + b, 0));
+  // ---- the work -------------------------------------------------------
+  act('The work', commits ? plural(commits, 'commit') : '');
+  // recent work, as a board
+  const tl = story.timeline || [];
+  if (tl.length >= 3) {
+    // A card carries what the commit actually was: the subject, the kind of
+    // change its prefix declares, and its position in the history.
+    const kind = (text) => {
+      const head = text.slice(0, 16).includes(':')
+        ? text.split(':')[0].toLowerCase() : text.toLowerCase();
+      for (const [key, tag] of [['feat', 'feature'], ['add', 'feature'],
+                                ['fix', 'fix'], ['perf', 'speed'],
+                                ['refactor', 'refactor'], ['doc', 'docs'],
+                                ['test', 'tests']]) {
+        if (head.startsWith(key)) return tag;
       }
-      const busiest = weeks.length ? Math.max(...weeks) : 0;
-      const last5 = weeks.slice(-5).reverse();
-      add('appdash', {
-        app: story.full_name || story.repo || name,
-        title: 'The work *rate*.',
-        value: String(active), delta: 'days with a commit',
-        label: `of the last ${cad.length} days`,
-        series: weeks.slice(-16).length ? weeks.slice(-16) : [0, 0],
-        railActive: 5,
-        topline: [
-          { label: 'commits', value: cad.reduce((a, b) => a + b, 0) },
-          { label: 'active days', value: active },
-          { label: 'weeks', value: weeks.length },
-          { label: 'busiest week', value: busiest },
-        ],
-        rows: last5.map((w, i) => ({
-          label: `week ${weeks.length - i}`, value: String(w),
-          frac: busiest ? w / busiest : 0.0, color: null,
-        })),
-      }, 1.3, 'cadence', ((ins && ins.peak_day) || '') || 'Counted from the commit dates.',
-        true, 'cadence');
-    }
-
-    // What the source turned out to know how to do, in the same ring the
-    // directories were drawn in.
-    const techs = (((ins && ins.techniques) || []).map(t => t.name)).slice(0, 8);
-    if (techs.length >= 4) {
-      add('apporbit', {
-        title: 'What the code *knows how to do*.',
-        mark: name.slice(0, 2).toUpperCase(),
-        items: techs.map(t => ({ name: t })),
-      }, 1.3, 'technique', 'Found by reading the source, not the README.',
-        false, 'technique');
-    }
-
-    // The project's own documented commands, actually running. The lines
-    // are the README's, not a script somebody imagined.
-    const cmds = (story.commands || []).filter(Boolean).slice(0, 3);
-    if (cmds.length) {
-      add('terminalrun', {
-        title: stats.branch || 'bash',
-        dur: 3.4,
-        lines: cmds.map(c => ({ kind: 'cmd', text: `$ ${ellipsis(c, 64)}` })),
-      }, 1.2, 'run it', 'The commands the README documents.', false, 'running it');
-    }
-
-    // A second file, further into the tree than the first.
-    if (moments.length > 1) {
-      const m2 = moments[1];
-      add('appcode', {
-        app: story.full_name || story.repo || name,
-        title: 'And *here*.',
-        root: m2.path.split('/')[0],
-        branch: story.branch || stats.branch || 'main',
-        action: 'Test',
-        tab: m2.path.split('/').pop(),
-        files: editorFiles(m2.path),
-        code: (m2.code || []).slice(0, 14),
-        status: editorStatus(m2.path, (m2.code || []).slice(0, 14)),
-        railActive: 3,
-      }, 1.5, 'source', m2.caption || 'Real source, not a mockup.', false, 'deeper in');
-    }
+      return 'change';
+    };
+    const recent = tl.slice(-9);
+    const cards = recent.map((t, i) => ({
+      text: ellipsis(t.text, 44), tag: kind(t.text),
+      meta: `#${tl.length - recent.length + i + 1}`,
+    }));
+    const third = Math.max(1, Math.floor(cards.length / 3));
+    add('appboard', {
+      app: story.full_name || story.repo || name,
+      title: 'The work, *on one board*.',
+      sprint: commits ? plural(commits, 'commit') : 'recent work',
+      columns: [
+        { name: 'earlier', cards: cards.slice(0, third) },
+        { name: 'then', cards: cards.slice(third, third * 2) },
+        { name: 'latest', cards: cards.slice(third * 2) },
+      ],
+    }, 1.4, 'history', 'Every card is a real commit.', true);
   }
-
-  // 9 -- the card people screenshot
+  // The work rate, on the screen a product would show it on. Every figure
+  // is a count of real commits in a real window of days.
+  const cad = (ins && ins.cadence) || [];
+  const active = cad.filter(v => v).length;
+  if (cad.length >= 60 && active >= 12 && duration >= 40) {
+    const weeks = [];
+    for (let i = 0; i + 7 <= cad.length; i += 7) {
+      weeks.push(cad.slice(i, i + 7).reduce((a, b) => a + b, 0));
+    }
+    const busiest = weeks.length ? Math.max(...weeks) : 0;
+    const last5 = weeks.slice(-5).reverse();
+    add('appdash', {
+      app: story.full_name || story.repo || name,
+      title: 'The work *rate*.',
+      value: String(active), delta: 'days with a commit',
+      label: `of the last ${cad.length} days`,
+      series: weeks.slice(-16).length ? weeks.slice(-16) : [0, 0],
+      railActive: 5,
+      topline: [
+        { label: 'commits', value: cad.reduce((a, b) => a + b, 0) },
+        { label: 'active days', value: active },
+        { label: 'weeks', value: weeks.length },
+        { label: 'busiest week', value: busiest },
+      ],
+      rows: last5.map((w, i) => ({
+        label: `week ${weeks.length - i}`, value: String(w),
+        frac: busiest ? w / busiest : 0.0, color: null,
+      })),
+    }, 1.3, 'cadence', ((ins && ins.peak_day) || '') || 'Counted from the commit dates.', true);
+  }
+  // ---- the close: no card ---------------------------------------------
+  act('', '', false);
+  // the card people screenshot
   add('endcard', {
     name, sub: story.url || story.repo || '', cta: 'made with cased2.0',
   }, 1.0, 'end', '', true);
 
-  return plan;
+  return layActs(acts, useCards);
 }
 
 // ---------------------------------------------------------------- decorate

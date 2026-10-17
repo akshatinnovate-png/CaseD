@@ -13,6 +13,7 @@ tiling, beat snapping, audio level, determinism.
 from __future__ import annotations
 
 import json
+import re
 import math
 import shutil
 import struct
@@ -142,6 +143,12 @@ def main(argv) -> int:
               not ({x["type"] for x in sh} & {"title", "stat", "globe", "langs",
                                               "timeline", "bigquote", "compare"}),
               ", ".join(sorted({x["type"] for x in sh})))
+        # The acts are the structure; a shot that belongs to a numbered act
+        # has to say which one, or the film is a jumble again.
+        marked = [x for x in sh if x.get("chapter")]
+        check(f"{dur:g}s: every chaptered shot names its act",
+              all(re.match(r"^\d\d \u00b7 \w", x["chapter"]) for x in marked),
+              f"{len(marked)} of {len(sh)} shots in an act")
         check(f"{dur:g}s: no transition or camera the new register dropped",
               not ({x["in"] for x in sh} & {"glitch", "flash", "zoom"})
               and not ({x["cam"] for x in sh} & {"left", "right", "up"})
@@ -180,6 +187,18 @@ def main(argv) -> int:
     # table apiece and need longer on them, so the bar is shots that earn
     # their dwell, not shots per second.
     check("creative mode is long-form", len(cs) >= 10, f"{len(cs)} shots")
+    # Chapters, numbered out of the total the film really has.
+    cardsh = [x for x in cs if x["type"] == "chaptercard"]
+    check("creative is chaptered", len(cardsh) >= 4, f"{len(cardsh)} chapter cards")
+    total = {x["data"]["total"] for x in cardsh}
+    check("every chapter card agrees on the total", len(total) == 1, str(total))
+    check("chapters are numbered in order and reach the total",
+          [x["data"]["number"] for x in cardsh]
+          == [f"{i + 1:02d}" for i in range(len(cardsh))]
+          and cardsh[-1]["data"]["number"] == cardsh[-1]["data"]["total"],
+          ", ".join(f'{x["data"]["number"]}/{x["data"]["total"]}' for x in cardsh))
+    check("a chapter card is followed by the act it names",
+          all(cs[cs.index(x) + 1]["type"] != "chaptercard" for x in cardsh[:-1]))
     check("creative stays in the product register",
           len({s["type"] for s in cs} & {"appwindows", "apporbit", "appboard",
                                          "appcode", "appdash", "appsplit",

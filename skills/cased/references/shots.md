@@ -6,11 +6,13 @@ director's, and all of them are safe to hand-edit before a re-render.
 
 Implemented in `BUILD` in `cased/engine/stage.html`.
 
-**What the automatic composer uses.** Every film it writes is a product film:
-`appwindows`, `apporbit`, `appboard`, `appcode`, `appdash` and `bullets`, plus
-`appsplit`, `appchat`, `terminalrun` and a second `appcode` past about forty
-seconds. The shot types below it no longer reaches for — `title`, `stat`,
-`globe`, `langs`, `timeline`, `arch`, `tree`, `flow`, `callout`, `heatmap`,
+**What the automatic composer uses.** Every film it writes is chaptered and
+every chapter is a product screen: `chaptercard` announces each act, and the
+acts are filled by `appwindows`, `apporbit`, `appboard`, `appcode`, `appdash`,
+`archmap`, `surfaces` and `bullets`, plus `appchat`, `callout`, `appsplit`,
+`terminalrun` and a second `appcode` as the runtime allows. The shot types
+below it no longer reaches for — `title`, `stat`,
+`globe`, `langs`, `timeline`, `arch`, `tree`, `flow`, `heatmap`,
 `constellation`, `compare`, `bigquote` and the rest — were the old slideshow
 grammar, and they are documented here because `cased-slim` hand-writes shot
 lists against the whole library. Reach for them deliberately, not by default.
@@ -254,3 +256,51 @@ One claim, full-bleed, word by word.
 
 Type auto-fits the length. Claims are ranked so none ends on a dangling word —
 a quote ending in "behind" or "and" reads as a fragment at this size.
+
+## `chaptercard`
+
+A full-bleed colour field with a numbered chapter on it. The spine of the
+film: it names the act, says where you are in it, and gives the eye a beat of
+flat colour between two dense screens.
+
+```json
+{ "number": "03", "total": "06", "text": "How it works",
+  "sub": "29 modules, 15 imports between them", "invert": true }
+```
+
+`invert` flips the field to the accent colour, so consecutive chapters
+alternate and the film has a rhythm you can feel without reading. The
+composer alternates automatically.
+
+## `surfaces`
+
+A row of tiles naming the tools the repository actually uses, each with the
+file that proves it underneath.
+
+```json
+{ "title": "Built with *what it says it is*.", "items": [
+  { "name": "GitHub Actions", "note": ".github/workflows/ci.yml", "icon": "check" },
+  { "name": "Python", "note": "13 files", "icon": "bolt" } ] }
+```
+
+The evidence line is the point. Never write a tile you cannot cite a path or
+a count for: a bare name is a claim, and on a tile it looks exactly like a
+measurement. `icon` is optional — one is chosen from the name otherwise.
+
+## `archmap`
+
+The import graph as labelled columns rather than a ring, so direction reads
+at a glance: left depends on right.
+
+```json
+{ "title": "How it *fits together*.",
+  "columns": ["scripts", "assets", "cased"],
+  "nodes": [{ "label": "analyze", "col": 2, "note": "753", "hub": true }],
+  "edges": [[0, 2], [1, 2]],
+  "note": "29 modules, 15 imports between them" }
+```
+
+`col` indexes `columns`; `edges` index `nodes`. Rows sit on a fixed pitch
+around the middle, so two modules in a column sit next to each other instead
+of being pinned to the top and bottom of the frame. Use real directory names
+for the headings — an invented layer name is as much of a claim as a number.
